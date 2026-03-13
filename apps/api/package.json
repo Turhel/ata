@@ -1,0 +1,31 @@
+{
+  "name": "@ata-portal/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db:generate": "drizzle-kit generate --config=drizzle.config.ts --name init",
+    "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
+    "db:studio": "drizzle-kit studio --config=drizzle.config.ts",
+    "db:seed": "tsx src/scripts/seed.ts",
+    "dev:link-auth-user": "tsx src/scripts/link-auth-user.ts",
+    "auth:generate": "pnpm dlx auth@1.5.5 generate --yes --config src/better-auth.config.ts --adapter drizzle --dialect postgresql --output src/better-auth.schema.ts",
+    "auth:migrate": "pnpm dlx auth@1.5.5 migrate --yes --config src/better-auth.config.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.0",
+    "better-auth": "^1.5.0",
+    "drizzle-orm": "^0.44.0",
+    "fastify": "^5.0.0",
+    "pg": "^8.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "drizzle-kit": "^0.31.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

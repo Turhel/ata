@@ -1,0 +1,311 @@
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  check,
+  date,
+  foreignKey,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+  varchar
+} from "drizzle-orm/pg-core";
+
+export const userStatusEnum = pgEnum("user_status", [
+  "pending",
+  "active",
+  "blocked",
+  "inactive"
+]);
+
+export const roleCodeEnum = pgEnum("role_code", [
+  "master",
+  "admin",
+  "assistant",
+  "inspector"
+]);
+
+export const sourceOrderStatusEnum = pgEnum("source_order_status", [
+  "Assigned",
+  "Received",
+  "Canceled"
+]);
+
+export const orderStatusEnum = pgEnum("order_status", [
+  "available",
+  "in_progress",
+  "submitted",
+  "follow_up",
+  "rejected",
+  "approved",
+  "batched",
+  "paid",
+  "cancelled",
+  "archived"
+]);
+
+export const orderEventTypeEnum = pgEnum("order_event_type", [
+  "created",
+  "claimed",
+  "updated",
+  "submitted",
+  "follow_up_requested",
+  "resubmitted",
+  "rejected",
+  "approved",
+  "returned_to_pool",
+  "batched",
+  "paid",
+  "cancelled_from_source",
+  "archived"
+]);
+
+export const importBatchStatusEnum = pgEnum("import_batch_status", [
+  "processing",
+  "completed",
+  "failed",
+  "partially_completed"
+]);
+
+export const importActionEnum = pgEnum("import_action", [
+  "created",
+  "updated",
+  "ignored",
+  "failed"
+]);
+
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    email: varchar("email", { length: 255 }).notNull().unique(),
+    fullName: varchar("full_name", { length: 255 }).notNull(),
+    status: userStatusEnum("status").notNull().default("pending"),
+    authUserId: varchar("auth_user_id", { length: 255 }).unique(),
+    lastLoginAt: timestamp("last_login_at"),
+    approvedAt: timestamp("approved_at"),
+    approvedByUserId: uuid("approved_by_user_id"),
+    blockedAt: timestamp("blocked_at"),
+    blockedByUserId: uuid("blocked_by_user_id"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    index("users_status_idx").on(t.status),
+    foreignKey({
+      columns: [t.approvedByUserId],
+      foreignColumns: [t.id]
+    }),
+    foreignKey({
+      columns: [t.blockedByUserId],
+      foreignColumns: [t.id]
+    })
+  ]
+);
+
+export const userRoles = pgTable(
+  "user_roles",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    roleCode: roleCodeEnum("role_code").notNull(),
+    assignedAt: timestamp("assigned_at").notNull().defaultNow(),
+    assignedByUserId: uuid("assigned_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    index("user_roles_user_id_idx").on(t.userId),
+    index("user_roles_role_code_idx").on(t.roleCode),
+    index("user_roles_user_id_is_active_idx").on(t.userId, t.isActive),
+    uniqueIndex("user_roles_one_active_per_user_idx")
+      .on(t.userId)
+      .where(sql`${t.isActive} = true`)
+  ]
+);
+
+export const teamAssignments = pgTable(
+  "team_assignments",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    adminUserId: uuid("admin_user_id")
+      .notNull()
+      .references(() => users.id),
+    assistantUserId: uuid("assistant_user_id")
+      .notNull()
+      .references(() => users.id),
+    isActive: boolean("is_active").notNull().default(true),
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    index("team_assignments_admin_user_id_idx").on(t.adminUserId),
+    index("team_assignments_assistant_user_id_idx").on(t.assistantUserId),
+    index("team_assignments_is_active_idx").on(t.isActive),
+    check(
+      "team_assignments_admin_not_assistant_chk",
+      sql`${t.adminUserId} <> ${t.assistantUserId}`
+    ),
+    uniqueIndex("team_assignments_one_active_per_assistant_idx")
+      .on(t.assistantUserId)
+      .where(sql`${t.isActive} = true`)
+  ]
+);
+
+export const poolImportBatches = pgTable(
+  "pool_import_batches",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    fileName: varchar("file_name", { length: 255 }).notNull(),
+    status: importBatchStatusEnum("status").notNull(),
+    totalRows: integer("total_rows").notNull().default(0),
+    insertedRows: integer("inserted_rows").notNull().default(0),
+    updatedRows: integer("updated_rows").notNull().default(0),
+    ignoredRows: integer("ignored_rows").notNull().default(0),
+    errorRows: integer("error_rows").notNull().default(0),
+    startedAt: timestamp("started_at").notNull().defaultNow(),
+    finishedAt: timestamp("finished_at"),
+    importedByUserId: uuid("imported_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    index("pool_import_batches_status_idx").on(t.status),
+    index("pool_import_batches_imported_by_user_id_idx").on(t.importedByUserId),
+    index("pool_import_batches_started_at_idx").on(t.startedAt)
+  ]
+);
+
+export const orders = pgTable(
+  "orders",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    externalOrderCode: varchar("external_order_code", { length: 120 })
+      .notNull()
+      .unique(),
+    sourceStatus: sourceOrderStatusEnum("source_status").notNull(),
+    status: orderStatusEnum("status").notNull().default("available"),
+
+    clientId: uuid("client_id"),
+    residentName: varchar("resident_name", { length: 255 }),
+    addressLine1: varchar("address_line_1", { length: 255 }),
+    addressLine2: varchar("address_line_2", { length: 255 }),
+    city: varchar("city", { length: 120 }),
+    state: varchar("state", { length: 50 }),
+    zipCode: varchar("zip_code", { length: 30 }),
+    workTypeId: uuid("work_type_id"),
+    inspectorAccountId: uuid("inspector_account_id"),
+    assignedInspectorId: uuid("assigned_inspector_id"),
+
+    assistantUserId: uuid("assistant_user_id").references(() => users.id),
+    sourceImportBatchId: uuid("source_import_batch_id").references(
+      () => poolImportBatches.id
+    ),
+
+    availableDate: date("available_date"),
+    deadlineDate: date("deadline_date"),
+    isRush: boolean("is_rush").notNull().default(false),
+    isVacant: boolean("is_vacant").notNull().default(false),
+
+    claimedAt: timestamp("claimed_at"),
+    submittedAt: timestamp("submitted_at"),
+    approvedAt: timestamp("approved_at"),
+    rejectedAt: timestamp("rejected_at"),
+    followUpAt: timestamp("follow_up_at"),
+    returnedToPoolAt: timestamp("returned_to_pool_at"),
+    batchedAt: timestamp("batched_at"),
+    paidAt: timestamp("paid_at"),
+    cancelledAt: timestamp("cancelled_at"),
+    completedAt: timestamp("completed_at"),
+
+    paymentLocked: boolean("payment_locked").notNull().default(false),
+    currentPaymentBatchItemId: uuid("current_payment_batch_item_id"),
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    index("orders_source_status_idx").on(t.sourceStatus),
+    index("orders_status_idx").on(t.status),
+    index("orders_client_id_idx").on(t.clientId),
+    index("orders_work_type_id_idx").on(t.workTypeId),
+    index("orders_inspector_account_id_idx").on(t.inspectorAccountId),
+    index("orders_assigned_inspector_id_idx").on(t.assignedInspectorId),
+    index("orders_assistant_user_id_idx").on(t.assistantUserId),
+    index("orders_available_date_idx").on(t.availableDate),
+    index("orders_deadline_date_idx").on(t.deadlineDate),
+    index("orders_status_assistant_user_id_idx").on(t.status, t.assistantUserId),
+    index("orders_status_inspector_account_id_idx").on(t.status, t.inspectorAccountId)
+  ]
+);
+
+export const poolImportItems = pgTable(
+  "pool_import_items",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    batchId: uuid("batch_id")
+      .notNull()
+      .references(() => poolImportBatches.id),
+    externalOrderCode: varchar("external_order_code", { length: 120 }).notNull(),
+    sourceStatus: sourceOrderStatusEnum("source_status").notNull(),
+    sourceInspectorAccountCode: varchar("source_inspector_account_code", {
+      length: 50
+    }),
+    sourceClientCode: varchar("source_client_code", { length: 80 }),
+    sourceWorkTypeCode: varchar("source_work_type_code", { length: 50 }),
+    rawPayload: jsonb("raw_payload").notNull(),
+    matchedOrderId: uuid("matched_order_id").references(() => orders.id),
+    importAction: importActionEnum("import_action").notNull(),
+    lineNumber: integer("line_number").notNull(),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    index("pool_import_items_batch_id_idx").on(t.batchId),
+    index("pool_import_items_external_order_code_idx").on(t.externalOrderCode),
+    index("pool_import_items_matched_order_id_idx").on(t.matchedOrderId),
+    index("pool_import_items_source_status_idx").on(t.sourceStatus)
+  ]
+);
+
+export const orderEvents = pgTable(
+  "order_events",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id),
+    eventType: orderEventTypeEnum("event_type").notNull(),
+    fromStatus: orderStatusEnum("from_status"),
+    toStatus: orderStatusEnum("to_status"),
+    performedByUserId: uuid("performed_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    reason: text("reason"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").notNull().defaultNow()
+  },
+  (t) => [
+    index("order_events_order_id_idx").on(t.orderId),
+    index("order_events_event_type_idx").on(t.eventType),
+    index("order_events_performed_by_user_id_idx").on(t.performedByUserId),
+    index("order_events_created_at_idx").on(t.createdAt)
+  ]
+);

@@ -1,0 +1,21 @@
+﻿{
+  "name": "ata-portal",
+  "private": true,
+  "packageManager": "pnpm@10.15.1",
+  "version": "0.0.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ],
+    "allowBuilds": {
+      "esbuild": true
+    }
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "dev:web": "pnpm -C apps/web dev",
+    "dev:api": "pnpm -C apps/api dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck"
+  }
+}
