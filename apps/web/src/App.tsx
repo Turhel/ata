@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { approveUser, blockUser, fetchHealth, fetchMe, fetchUsers, reactivateUser } from "./lib/api";
+import { approveUser, blockUser, fetchHealth, fetchMe, fetchOrders, fetchUsers, reactivateUser } from "./lib/api";
 import { signInEmail, signOut } from "./lib/auth";
 import { getWebEnv } from "./lib/env";
 
@@ -20,12 +20,19 @@ type UsersState =
   | { status: "success"; data: Awaited<ReturnType<typeof fetchUsers>> }
   | { status: "error"; message: string };
 
+type OrdersState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; data: Awaited<ReturnType<typeof fetchOrders>>; scope: "available" | "mine" | "follow-up" }
+  | { status: "error"; message: string };
+
 export function App() {
   const env = getWebEnv();
   const [healthState, setHealthState] = useState<HealthState>({ status: "loading" });
   const [meState, setMeState] = useState<MeState>({ status: "idle" });
   const [usersState, setUsersState] = useState<UsersState>({ status: "idle" });
   const [usersActionError, setUsersActionError] = useState<string | null>(null);
+  const [ordersState, setOrdersState] = useState<OrdersState>({ status: "idle" });
 
   const [email, setEmail] = useState("admin@dev.local");
   const [password, setPassword] = useState("");
@@ -118,6 +125,17 @@ export function App() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erro desconhecido";
       setUsersState({ status: "error", message });
+    }
+  }
+
+  async function handleListOrders(scope: "available" | "mine" | "follow-up") {
+    setOrdersState({ status: "loading" });
+    try {
+      const data = await fetchOrders(env.apiUrl, scope);
+      setOrdersState({ status: "success", data, scope });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erro desconhecido";
+      setOrdersState({ status: "error", message });
     }
   }
 
@@ -315,6 +333,81 @@ export function App() {
                         </button>
                       )}
                     </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : null}
+      </section>
+
+      <section style={{ marginTop: 24 }}>
+        <h2 style={{ margin: 0, fontSize: 16 }}>Ordens (assistant)</h2>
+
+        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={() => handleListOrders("available")} disabled={authBusy}>
+            Ordens disponÃ­veis
+          </button>
+          <button onClick={() => handleListOrders("mine")} disabled={authBusy}>
+            Minhas ordens
+          </button>
+          <button onClick={() => handleListOrders("follow-up")} disabled={authBusy}>
+            Meus follow-ups
+          </button>
+        </div>
+
+        <div style={{ marginTop: 12, fontSize: 12 }}>
+          {ordersState.status === "idle"
+            ? "Nenhuma requisiÃ§Ã£o ainda."
+            : ordersState.status === "loading"
+              ? "Carregando /orders..."
+              : ordersState.status === "error"
+                ? `Erro ao chamar /orders: ${ordersState.message}`
+                : ordersState.data.ok
+                  ? `Scope=${ordersState.scope} â€” ordens: ${ordersState.data.orders.length}`
+                  : `Sem permissÃ£o / erro: ${ordersState.data.message}`}
+        </div>
+
+        {ordersState.status === "success" && ordersState.data.ok ? (
+          <table style={{ marginTop: 8, borderCollapse: "collapse", width: "100%", fontSize: 12 }}>
+            <thead>
+              <tr>
+                {[
+                  "id",
+                  "externalOrderCode",
+                  "sourceStatus",
+                  "status",
+                  "residentName",
+                  "city",
+                  "state",
+                  "assistantUserId"
+                ].map((h) => (
+                  <th key={h} style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: "6px 4px" }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {ordersState.data.orders.map((o) => (
+                <tr key={o.id}>
+                  <td style={{ padding: "6px 4px", borderBottom: "1px solid #f0f0f0" }}>
+                    <code>{o.id}</code>
+                  </td>
+                  <td style={{ padding: "6px 4px", borderBottom: "1px solid #f0f0f0" }}>
+                    <code>{o.externalOrderCode}</code>
+                  </td>
+                  <td style={{ padding: "6px 4px", borderBottom: "1px solid #f0f0f0" }}>
+                    <code>{o.sourceStatus}</code>
+                  </td>
+                  <td style={{ padding: "6px 4px", borderBottom: "1px solid #f0f0f0" }}>
+                    <code>{o.status}</code>
+                  </td>
+                  <td style={{ padding: "6px 4px", borderBottom: "1px solid #f0f0f0" }}>{o.residentName ?? ""}</td>
+                  <td style={{ padding: "6px 4px", borderBottom: "1px solid #f0f0f0" }}>{o.city ?? ""}</td>
+                  <td style={{ padding: "6px 4px", borderBottom: "1px solid #f0f0f0" }}>{o.state ?? ""}</td>
+                  <td style={{ padding: "6px 4px", borderBottom: "1px solid #f0f0f0" }}>
+                    {o.assistantUserId ? <code>{o.assistantUserId}</code> : <span style={{ opacity: 0.7 }}>(null)</span>}
                   </td>
                 </tr>
               ))}

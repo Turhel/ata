@@ -180,7 +180,7 @@ export type OrdersListResponse =
   | { ok: true; orders: OrdersListItem[] }
   | {
       ok: false;
-      error: "UNAUTHORIZED" | "FORBIDDEN" | "INTERNAL_ERROR";
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "INTERNAL_ERROR";
       message: string;
     };
 
@@ -272,6 +272,7 @@ export type OrderSubmitResponse =
     };
 export type OrderFollowUpRequest = { reason: string };
 export type OrderRejectRequest = { reason: string };
+export type OrderReturnToPoolRequest = { reason: string };
 
 export type OrderFollowUpResponse =
   | { ok: true; order: { id: string; status: OrderStatus; followUpAt: string | null } }
@@ -313,6 +314,21 @@ export type OrderApproveResponse =
         | "NOT_FOUND"
         | "INVALID_STATUS"
         | "ORDER_CANCELLED"
+        | "ORDER_INCOMPLETE"
+        | "INTERNAL_ERROR";
+      message: string;
+      details?: { missingFields?: string[] };
+    };
+
+export type OrderReturnToPoolResponse =
+  | { ok: true; order: { id: string; status: OrderStatus; assistantUserId: string | null; returnedToPoolAt: string | null } }
+  | {
+      ok: false;
+      error:
+        | "UNAUTHORIZED"
+        | "FORBIDDEN"
+        | "NOT_FOUND"
+        | "INVALID_STATUS"
         | "ORDER_INCOMPLETE"
         | "INTERNAL_ERROR";
       message: string;

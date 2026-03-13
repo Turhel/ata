@@ -11,6 +11,8 @@ import { approveOrder, rejectOrder, requestFollowUp } from "../modules/orders/ad
 import { claimOrder } from "../modules/orders/claim-order.js";
 import { getOrderById } from "../modules/orders/get-order-by-id.js";
 import { listOrders } from "../modules/orders/list-orders.js";
+import { listOrdersForAssistant } from "../modules/orders/list-orders-assistant.js";
+import { returnToPool } from "../modules/orders/return-to-pool.js";
 import { submitOrder } from "../modules/orders/submit-order.js";
 
 export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
@@ -32,14 +34,47 @@ export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
 
   app.get("/orders", async (request, reply) => {
     try {
-      await requireAdminOrMaster(request);
+      const authSession = await requireAuthenticated(env, request);
+      const operationalUser = await requireOperationalUser(env, authSession.user.id);
+      requireActiveUser(operationalUser);
+      const role = await requireRole({
+        env,
+        operationalUserId: operationalUser.id,
+        allowed: ["admin", "master", "assistant", "inspector"]
+      });
 
       if (!env.databaseUrl) {
         reply.status(500);
         return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
       }
 
-      const rows = await listOrders(env.databaseUrl);
+      if (role === "admin" || role === "master") {
+        const rows = await listOrders(env.databaseUrl);
+        return { ok: true, orders: rows };
+      }
+
+      if (role !== "assistant") {
+        reply.status(403);
+        return { ok: false, error: "FORBIDDEN", message: "Role não permitida para listar orders" };
+      }
+
+      const rawScope = (request.query as any)?.scope as string | undefined;
+      const scope = rawScope?.trim() || "mine";
+      if (scope !== "available" && scope !== "mine" && scope !== "follow-up") {
+        reply.status(400);
+        return {
+          ok: false,
+          error: "BAD_REQUEST",
+          message: "Parâmetro 'scope' inválido. Use: available | mine | follow-up"
+        };
+      }
+
+      const rows = await listOrdersForAssistant({
+        databaseUrl: env.databaseUrl,
+        assistantUserId: operationalUser.id,
+        scope
+      });
+
       return { ok: true, orders: rows };
     } catch (error) {
       if (error instanceof PermissionError) {
@@ -300,6 +335,54 @@ export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
               ? 422
               : 409;
 
+        reply.status(status);
+        return {
+          ok: false,
+          error: result.error,
+          message: result.message,
+          ...(result.details ? { details: result.details } : {})
+        };
+      }
+
+      return { ok: true, order: result.order };
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.post("/orders/:id/return-to-pool", async (request, reply) => {
+    try {
+      const actor = await requireAdminOrMaster(request);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const body = request.body as any;
+      const reason = typeof body?.reason === "string" ? body.reason : "";
+
+      const id = (request.params as any).id as string;
+      const result = await returnToPool({
+        databaseUrl: env.databaseUrl,
+        orderId: id,
+        actorUserId: actor.id,
+        reason
+      });
+
+      if (!result.ok) {
+        const status = result.error === "NOT_FOUND" ? 404 : result.error === "ORDER_INCOMPLETE" ? 422 : 409;
         reply.status(status);
         return {
           ok: false,

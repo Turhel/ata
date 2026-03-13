@@ -1,6 +1,7 @@
 import type {
   HealthResponse,
   MeResponse,
+  OrdersListResponse,
   UserStatusMutationResponse,
   UsersListResponse
 } from "@ata-portal/contracts";
@@ -88,6 +89,28 @@ export async function fetchUsers(apiUrl: string): Promise<UsersListResponse> {
   }
 
   return data as UsersListResponse;
+}
+
+export async function fetchOrders(apiUrl: string, scope?: "available" | "mine" | "follow-up"): Promise<OrdersListResponse> {
+  const qs = scope ? `?scope=${encodeURIComponent(scope)}` : "";
+  const response = await apiFetch(apiUrl, `/orders${qs}`, {
+    headers: { Accept: "application/json" }
+  });
+
+  const data: unknown = await response.json().catch(() => undefined);
+
+  if (!response.ok) {
+    if (typeof data === "object" && data != null) {
+      return data as OrdersListResponse;
+    }
+    return {
+      ok: false,
+      error: "INTERNAL_ERROR",
+      message: `HTTP ${response.status} ao chamar /orders`
+    };
+  }
+
+  return data as OrdersListResponse;
 }
 
 async function postUsersAction(apiUrl: string, path: string): Promise<UserStatusMutationResponse> {
