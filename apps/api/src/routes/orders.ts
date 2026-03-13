@@ -7,6 +7,7 @@ import {
   requireOperationalUser,
   requireRole
 } from "../lib/permissions.js";
+import { approveOrder, rejectOrder, requestFollowUp } from "../modules/orders/admin-review.js";
 import { claimOrder } from "../modules/orders/claim-order.js";
 import { getOrderById } from "../modules/orders/get-order-by-id.js";
 import { listOrders } from "../modules/orders/list-orders.js";
@@ -106,14 +107,8 @@ export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        const status =
-          result.error === "NOT_FOUND" ? 404 : result.error === "INVALID_STATUS" ? 409 : 409;
-        reply.status(status);
-        return {
-          ok: false,
-          error: result.error,
-          message: result.message,
-        };
+        reply.status(result.error === "NOT_FOUND" ? 404 : 409);
+        return { ok: false, error: result.error, message: result.message };
       }
 
       return { ok: true, order: result.order };
@@ -158,11 +153,159 @@ export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
               : result.error === "ORDER_INCOMPLETE"
                 ? 422
                 : 409;
+
         reply.status(status);
         return {
           ok: false,
           error: result.error,
           message: result.message,
+          ...(result.details ? { details: result.details } : {})
+        };
+      }
+
+      return { ok: true, order: result.order };
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.post("/orders/:id/follow-up", async (request, reply) => {
+    try {
+      const actor = await requireAdminOrMaster(request);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const body = request.body as any;
+      const reason = typeof body?.reason === "string" ? body.reason : "";
+
+      const id = (request.params as any).id as string;
+      const result = await requestFollowUp({
+        databaseUrl: env.databaseUrl,
+        orderId: id,
+        actorUserId: actor.id,
+        reason
+      });
+
+      if (!result.ok) {
+        const status = result.error === "NOT_FOUND" ? 404 : result.error === "ORDER_INCOMPLETE" ? 422 : 409;
+        reply.status(status);
+        return {
+          ok: false,
+          error: result.error,
+          message: result.message,
+          ...(result.details ? { details: result.details } : {})
+        };
+      }
+
+      return { ok: true, order: result.order };
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.post("/orders/:id/reject", async (request, reply) => {
+    try {
+      const actor = await requireAdminOrMaster(request);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const body = request.body as any;
+      const reason = typeof body?.reason === "string" ? body.reason : "";
+
+      const id = (request.params as any).id as string;
+      const result = await rejectOrder({
+        databaseUrl: env.databaseUrl,
+        orderId: id,
+        actorUserId: actor.id,
+        reason
+      });
+
+      if (!result.ok) {
+        const status = result.error === "NOT_FOUND" ? 404 : result.error === "ORDER_INCOMPLETE" ? 422 : 409;
+        reply.status(status);
+        return {
+          ok: false,
+          error: result.error,
+          message: result.message,
+          ...(result.details ? { details: result.details } : {})
+        };
+      }
+
+      return { ok: true, order: result.order };
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.post("/orders/:id/approve", async (request, reply) => {
+    try {
+      const actor = await requireAdminOrMaster(request);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const id = (request.params as any).id as string;
+      const result = await approveOrder({
+        databaseUrl: env.databaseUrl,
+        orderId: id,
+        actorUserId: actor.id
+      });
+
+      if (!result.ok) {
+        const status =
+          result.error === "NOT_FOUND"
+            ? 404
+            : result.error === "ORDER_INCOMPLETE"
+              ? 422
+              : 409;
+
+        reply.status(status);
+        return {
+          ok: false,
+          error: result.error,
+          message: result.message,
+          ...(result.details ? { details: result.details } : {})
         };
       }
 

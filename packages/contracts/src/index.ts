@@ -270,3 +270,51 @@ export type OrderSubmitResponse =
       message: string;
       details?: { missingFields?: string[] };
     };
+export type OrderFollowUpRequest = { reason: string };
+export type OrderRejectRequest = { reason: string };
+
+export type OrderFollowUpResponse =
+  | { ok: true; order: { id: string; status: OrderStatus; followUpAt: string | null } }
+  | {
+      ok: false;
+      error:
+        | "UNAUTHORIZED"
+        | "FORBIDDEN"
+        | "NOT_FOUND"
+        | "INVALID_STATUS"
+        | "ORDER_INCOMPLETE"
+        | "INTERNAL_ERROR";
+      message: string;
+      details?: { missingFields?: string[] };
+    };
+
+export type OrderRejectResponse =
+  | { ok: true; order: { id: string; status: OrderStatus; rejectedAt: string | null } }
+  | {
+      ok: false;
+      error:
+        | "UNAUTHORIZED"
+        | "FORBIDDEN"
+        | "NOT_FOUND"
+        | "INVALID_STATUS"
+        | "ORDER_INCOMPLETE"
+        | "INTERNAL_ERROR";
+      message: string;
+      details?: { missingFields?: string[] };
+    };
+
+export type OrderApproveResponse =
+  | { ok: true; order: { id: string; status: OrderStatus; approvedAt: string | null } }
+  | {
+      ok: false;
+      error:
+        | "UNAUTHORIZED"
+        | "FORBIDDEN"
+        | "NOT_FOUND"
+        | "INVALID_STATUS"
+        | "ORDER_CANCELLED"
+        | "ORDER_INCOMPLETE"
+        | "INTERNAL_ERROR";
+      message: string;
+      details?: { missingFields?: string[] };
+    };
