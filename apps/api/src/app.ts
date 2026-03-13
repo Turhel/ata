@@ -6,6 +6,7 @@ import { registerHealthRoute } from "./routes/health.js";
 import { registerMeRoute } from "./routes/me.js";
 import { registerUsersRoutes } from "./routes/users.js";
 import { registerPoolImportRoutes } from "./routes/pool-import.js";
+import { registerOrdersRoutes } from "./routes/orders.js";
 
 export function buildApp(env: ApiEnv) {
   const app = fastify();
@@ -22,6 +23,7 @@ export function buildApp(env: ApiEnv) {
   registerMeRoute(app, env);
   registerUsersRoutes(app, env);
   registerPoolImportRoutes(app, env);
+  registerOrdersRoutes(app, env);
 
   return app;
 }

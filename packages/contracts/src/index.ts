@@ -148,3 +148,125 @@ export type PoolImportBatchGetResponse =
       error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INTERNAL_ERROR";
       message: string;
     };
+export type OrderStatus =
+  | "available"
+  | "in_progress"
+  | "submitted"
+  | "follow_up"
+  | "rejected"
+  | "approved"
+  | "batched"
+  | "paid"
+  | "cancelled"
+  | "archived";
+
+export type OrdersListItem = {
+  id: string;
+  externalOrderCode: string;
+  sourceStatus: SourceOrderStatus;
+  status: OrderStatus;
+  residentName: string | null;
+  city: string | null;
+  state: string | null;
+  availableDate: string | null;
+  deadlineDate: string | null;
+  assistantUserId: string | null;
+  sourceImportBatchId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type OrdersListResponse =
+  | { ok: true; orders: OrdersListItem[] }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type OrderDetail = {
+  id: string;
+  externalOrderCode: string;
+  sourceStatus: SourceOrderStatus;
+  status: OrderStatus;
+  clientId: string | null;
+  residentName: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
+  workTypeId: string | null;
+  inspectorAccountId: string | null;
+  assignedInspectorId: string | null;
+  assistantUserId: string | null;
+  sourceImportBatchId: string | null;
+  availableDate: string | null;
+  deadlineDate: string | null;
+  isRush: boolean;
+  isVacant: boolean;
+  claimedAt: string | null;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  rejectedAt: string | null;
+  followUpAt: string | null;
+  returnedToPoolAt: string | null;
+  batchedAt: string | null;
+  paidAt: string | null;
+  cancelledAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type OrderGetResponse =
+  | { ok: true; order: OrderDetail; importBatch: PoolImportBatch | null }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INTERNAL_ERROR";
+      message: string;
+    };
+export type OrderClaimResponse =
+  | {
+      ok: true;
+      order: {
+        id: string;
+        status: OrderStatus;
+        assistantUserId: string;
+        claimedAt: string | null;
+      };
+    }
+  | {
+      ok: false;
+      error:
+        | "UNAUTHORIZED"
+        | "FORBIDDEN"
+        | "NOT_FOUND"
+        | "INVALID_STATUS"
+        | "ALREADY_CLAIMED"
+        | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type OrderSubmitResponse =
+  | {
+      ok: true;
+      order: {
+        id: string;
+        status: OrderStatus;
+        submittedAt: string | null;
+      };
+    }
+  | {
+      ok: false;
+      error:
+        | "UNAUTHORIZED"
+        | "FORBIDDEN"
+        | "NOT_FOUND"
+        | "INVALID_STATUS"
+        | "ORDER_CANCELLED"
+        | "ORDER_INCOMPLETE"
+        | "INTERNAL_ERROR";
+      message: string;
+      details?: { missingFields?: string[] };
+    };
