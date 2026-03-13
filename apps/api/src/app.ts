@@ -1,10 +1,11 @@
-import fastify from "fastify";
+﻿import fastify from "fastify";
 import cors from "@fastify/cors";
 import type { ApiEnv } from "./env.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerHealthRoute } from "./routes/health.js";
 import { registerMeRoute } from "./routes/me.js";
 import { registerUsersRoutes } from "./routes/users.js";
+import { registerPoolImportRoutes } from "./routes/pool-import.js";
 
 export function buildApp(env: ApiEnv) {
   const app = fastify();
@@ -20,6 +21,7 @@ export function buildApp(env: ApiEnv) {
   registerAuthRoutes(app, env);
   registerMeRoute(app, env);
   registerUsersRoutes(app, env);
+  registerPoolImportRoutes(app, env);
 
   return app;
 }

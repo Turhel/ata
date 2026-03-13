@@ -1,4 +1,4 @@
-export type HealthResponse = {
+﻿export type HealthResponse = {
   ok: true;
   db?: { ok: boolean; error?: string };
 };
@@ -59,5 +59,92 @@ export type UserStatusMutationResponse =
   | {
       ok: false;
       error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_STATE" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type SourceOrderStatus = "Assigned" | "Received" | "Canceled";
+
+export type ImportBatchStatus = "processing" | "completed" | "failed" | "partially_completed";
+
+export type ImportAction = "created" | "updated" | "ignored" | "failed";
+
+export type PoolImportNormalizedItem = {
+  lineNumber: number;
+  externalOrderCode: string;
+  sourceStatus: SourceOrderStatus;
+  residentName?: string | null;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  availableDate?: string | null;
+  deadlineDate?: string | null;
+  isRush?: boolean | null;
+  isVacant?: boolean | null;
+  sourceInspectorAccountCode?: string | null;
+  sourceClientCode?: string | null;
+  sourceWorkTypeCode?: string | null;
+  rawPayload: unknown;
+};
+
+export type PoolImportRequest = {
+  fileName: string;
+  items: PoolImportNormalizedItem[];
+};
+
+export type PoolImportBatchCounters = {
+  totalRows: number;
+  insertedRows: number;
+  updatedRows: number;
+  ignoredRows: number;
+  errorRows: number;
+};
+
+export type PoolImportBatchSummary = {
+  id: string;
+  fileName: string;
+  status: Exclude<ImportBatchStatus, "processing">;
+  counters: PoolImportBatchCounters;
+};
+
+export type PoolImportResponse =
+  | { ok: true; batch: PoolImportBatchSummary }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type PoolImportBatch = {
+  id: string;
+  fileName: string;
+  status: ImportBatchStatus;
+  totalRows: number;
+  insertedRows: number;
+  updatedRows: number;
+  ignoredRows: number;
+  errorRows: number;
+  startedAt: string;
+  finishedAt: string | null;
+  importedByUserId: string;
+};
+
+export type PoolImportBatchItem = {
+  id: string;
+  lineNumber: number;
+  externalOrderCode: string;
+  sourceStatus: SourceOrderStatus;
+  importAction: ImportAction;
+  matchedOrderId: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+};
+
+export type PoolImportBatchGetResponse =
+  | { ok: true; batch: PoolImportBatch; items: PoolImportBatchItem[] }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INTERNAL_ERROR";
       message: string;
     };
