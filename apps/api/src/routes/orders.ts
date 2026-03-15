@@ -26,6 +26,7 @@ import { patchOrderAsAdminOrMaster, patchOrderAsAssistant } from "../modules/ord
 import { returnToPool } from "../modules/orders/return-to-pool.js";
 import { resubmitOrder } from "../modules/orders/resubmit-order.js";
 import { submitOrder } from "../modules/orders/submit-order.js";
+import { getActiveAssistantIdsByAdmin } from "../modules/team-assignments/get-active-assistant-ids-by-admin.js";
 
 export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
   const allowedOrderStatuses = [
@@ -78,16 +79,36 @@ export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
       const search = normalizeSearch(query.search);
 
       if (role === "admin" || role === "master") {
+        const scopeRaw = typeof query.scope === "string" ? query.scope.trim() : "";
+        if (scopeRaw && scopeRaw !== "all" && scopeRaw !== "team") {
+          reply.status(400);
+          return { ok: false, error: "BAD_REQUEST", message: "Parâmetro 'scope' inválido para /orders" };
+        }
+        if (role === "master" && scopeRaw === "team") {
+          reply.status(400);
+          return { ok: false, error: "BAD_REQUEST", message: "scope=team é válido apenas para admin" };
+        }
+
         const statusRaw = typeof query.status === "string" ? query.status.trim() : "";
         if (statusRaw && !allowedOrderStatuses.includes(statusRaw as (typeof allowedOrderStatuses)[number])) {
           reply.status(400);
           return { ok: false, error: "BAD_REQUEST", message: "Parâmetro 'status' inválido para /orders" };
         }
 
+        const assistantUserIds =
+          role === "admin" && scopeRaw === "team"
+            ? await getActiveAssistantIdsByAdmin({
+                databaseUrl: env.databaseUrl,
+                adminUserId: operationalUser.id
+              })
+            : undefined;
+
         const result = await listOrders({
           databaseUrl: env.databaseUrl,
           status: (statusRaw || null) as (typeof allowedOrderStatuses)[number] | null,
           search,
+          assistantUserIds,
+          includeAvailableWhenTeamScoped: scopeRaw === "team",
           ...pagination
         });
         return {

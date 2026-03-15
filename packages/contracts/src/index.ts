@@ -69,6 +69,81 @@ export type UserStatusMutationResponse =
       message: string;
     };
 
+export type RoleCode = "master" | "admin" | "assistant" | "inspector";
+
+export type UserRoleMutationRequest = {
+  roleCode: RoleCode;
+};
+
+export type UserRoleMutationResponse =
+  | {
+      ok: true;
+      user: UsersListItem;
+      role: {
+        userId: string;
+        roleCode: RoleCode;
+        assignedAt: string;
+        assignedByUserId: string;
+      };
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "BAD_REQUEST" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type TeamAssignmentItem = {
+  id: string;
+  adminUserId: string;
+  assistantUserId: string;
+  isActive: boolean;
+  startDate: string;
+  endDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+  admin: {
+    id: string;
+    email: string;
+  };
+  assistant: {
+    id: string;
+    email: string;
+    fullName: string;
+  } | null;
+};
+
+export type TeamAssignmentsListResponse =
+  | { ok: true; assignments: TeamAssignmentItem[] }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type TeamAssignmentCreateRequest = {
+  adminUserId?: string;
+  assistantUserId: string;
+  startDate?: string;
+};
+
+export type TeamAssignmentMutationResponse =
+  | {
+      ok: true;
+      assignment: {
+        id: string;
+        adminUserId: string;
+        assistantUserId: string;
+        isActive: boolean;
+        startDate: string;
+        endDate: string | null;
+      };
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "BAD_REQUEST" | "CONFLICT" | "INVALID_STATE" | "INTERNAL_ERROR";
+      message: string;
+    };
+
 export type SourceOrderStatus = "Assigned" | "Received" | "Canceled";
 
 export type ImportBatchStatus = "processing" | "completed" | "failed" | "partially_completed";
@@ -561,6 +636,7 @@ export type AdminDashboardResponse =
   | {
       ok: true;
       dashboard: {
+        scope: "global" | "team";
         users: {
           pending: number;
           active: number;
@@ -589,6 +665,18 @@ export type AdminDashboardResponse =
           partiallyCompleted: number;
           failed: number;
         };
+        team: {
+          assistants: number;
+          orders: {
+            availableToTeam: number;
+            inProgress: number;
+            submitted: number;
+            followUp: number;
+            approved: number;
+            batched: number;
+            paid: number;
+          };
+        } | null;
       };
     }
   | {

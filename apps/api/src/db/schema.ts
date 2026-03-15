@@ -87,6 +87,37 @@ export const paymentBatchStatusEnum = pgEnum("payment_batch_status", [
   "cancelled"
 ]);
 
+export const routeStatusEnum = pgEnum("route_status", [
+  "draft",
+  "published",
+  "superseded",
+  "cancelled"
+]);
+
+export const routeEventTypeEnum = pgEnum("route_event_type", [
+  "created",
+  "published",
+  "superseded",
+  "cancelled",
+  "reordered",
+  "imported_gpx",
+  "export_generated"
+]);
+
+export const routeStopStatusEnum = pgEnum("route_stop_status", [
+  "pending",
+  "done",
+  "skipped"
+]);
+
+export const routeStopCategoryEnum = pgEnum("route_stop_category", [
+  "regular",
+  "exterior",
+  "interior",
+  "fint",
+  "overdue"
+]);
+
 export const users = pgTable(
   "users",
   {
@@ -501,4 +532,145 @@ export const paymentBatchItems = pgTable(
     index("payment_batch_items_inspector_account_id_idx").on(t.inspectorAccountId),
     uniqueIndex("payment_batch_items_batch_order_idx").on(t.paymentBatchId, t.orderId)
   ]
+);
+
+export const routeSourceBatches = pgTable(
+  "route_source_batches",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    routeDate: date("route_date").notNull(),
+    fileName: varchar("file_name", { length: 255 }).notNull(),
+    fileHash: varchar("file_hash", { length: 64 }),
+    uploadedByUserId: uuid("uploaded_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    index("route_source_batches_route_date_idx").on(t.routeDate),
+    index("route_source_batches_uploaded_by_user_id_idx").on(t.uploadedByUserId)
+  ]
+);
+
+export const routeCandidates = pgTable(
+  "route_candidates",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    sourceBatchId: uuid("source_batch_id")
+      .notNull()
+      .references(() => routeSourceBatches.id),
+    lineNumber: integer("line_number").notNull(),
+    externalOrderCode: varchar("external_order_code", { length: 120 }).notNull(),
+    sourceStatus: sourceOrderStatusEnum("source_status").notNull(),
+    sourceInspectorAccountCode: varchar("source_inspector_account_code", { length: 50 }),
+    sourceClientCode: varchar("source_client_code", { length: 80 }),
+    sourceWorkTypeCode: varchar("source_work_type_code", { length: 50 }),
+    residentName: varchar("resident_name", { length: 255 }),
+    addressLine1: varchar("address_line_1", { length: 255 }),
+    addressLine2: varchar("address_line_2", { length: 255 }),
+    city: varchar("city", { length: 120 }),
+    state: varchar("state", { length: 50 }),
+    zipCode: varchar("zip_code", { length: 30 }),
+    dueDate: date("due_date"),
+    startDate: date("start_date"),
+    hasWindow: boolean("has_window").notNull().default(false),
+    isRush: boolean("is_rush").notNull().default(false),
+    isFollowUp: boolean("is_follow_up").notNull().default(false),
+    isVacant: boolean("is_vacant").notNull().default(false),
+    rawPayload: jsonb("raw_payload").notNull(),
+    orderId: uuid("order_id").references(() => orders.id),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    uniqueIndex("route_candidates_batch_line_idx").on(t.sourceBatchId, t.lineNumber),
+    index("route_candidates_source_batch_id_idx").on(t.sourceBatchId),
+    index("route_candidates_external_order_code_idx").on(t.externalOrderCode),
+    index("route_candidates_source_inspector_account_code_idx").on(t.sourceInspectorAccountCode),
+    index("route_candidates_due_date_idx").on(t.dueDate)
+  ]
+);
+
+export const routes = pgTable(
+  "routes",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    routeDate: date("route_date").notNull(),
+    sourceBatchId: uuid("source_batch_id")
+      .notNull()
+      .references(() => routeSourceBatches.id),
+    inspectorAccountId: uuid("inspector_account_id")
+      .notNull()
+      .references(() => inspectorAccounts.id),
+    inspectorId: uuid("inspector_id").references(() => inspectors.id),
+    assistantUserId: uuid("assistant_user_id").references(() => users.id),
+    status: routeStatusEnum("status").notNull().default("draft"),
+    version: integer("version").notNull().default(1),
+    supersededByRouteId: uuid("superseded_by_route_id").references((): any => routes.id),
+    publishedAt: timestamp("published_at"),
+    publishedByUserId: uuid("published_by_user_id").references(() => users.id),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    uniqueIndex("routes_date_account_version_idx").on(t.routeDate, t.inspectorAccountId, t.version),
+    uniqueIndex("routes_one_active_per_day_account_idx")
+      .on(t.routeDate, t.inspectorAccountId)
+      .where(sql`${t.status} in ('draft','published')`),
+    index("routes_route_date_idx").on(t.routeDate),
+    index("routes_inspector_account_id_idx").on(t.inspectorAccountId),
+    index("routes_status_idx").on(t.status)
+  ]
+);
+
+export const routeStops = pgTable(
+  "route_stops",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    routeId: uuid("route_id")
+      .notNull()
+      .references(() => routes.id),
+    seq: integer("seq").notNull(),
+    candidateId: uuid("candidate_id").references(() => routeCandidates.id),
+    orderId: uuid("order_id").references(() => orders.id),
+    routeCategory: routeStopCategoryEnum("route_category").notNull().default("regular"),
+    stopStatus: routeStopStatusEnum("stop_status").notNull().default("pending"),
+    residentName: varchar("resident_name", { length: 255 }),
+    addressLine1: varchar("address_line_1", { length: 255 }),
+    addressLine2: varchar("address_line_2", { length: 255 }),
+    city: varchar("city", { length: 120 }),
+    state: varchar("state", { length: 50 }),
+    zipCode: varchar("zip_code", { length: 30 }),
+    dueDate: date("due_date"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    uniqueIndex("route_stops_route_seq_idx").on(t.routeId, t.seq),
+    index("route_stops_route_id_idx").on(t.routeId),
+    index("route_stops_candidate_id_idx").on(t.candidateId),
+    index("route_stops_order_id_idx").on(t.orderId)
+  ]
+);
+
+export const routeEvents = pgTable(
+  "route_events",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    routeId: uuid("route_id")
+      .notNull()
+      .references(() => routes.id),
+    eventType: routeEventTypeEnum("event_type").notNull(),
+    fromStatus: routeStatusEnum("from_status"),
+    toStatus: routeStatusEnum("to_status"),
+    performedByUserId: uuid("performed_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    reason: text("reason"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").notNull().defaultNow()
+  },
+  (t) => [index("route_events_route_id_idx").on(t.routeId), index("route_events_created_at_idx").on(t.createdAt)]
 );

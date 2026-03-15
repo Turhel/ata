@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, or } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { orders } from "../../db/schema.js";
 import { getDb } from "../../lib/db.js";
 
@@ -17,6 +17,8 @@ export async function listOrders(params: {
     | "archived"
     | null;
   search?: string | null;
+  assistantUserIds?: string[];
+  includeAvailableWhenTeamScoped?: boolean;
   page: number;
   pageSize: number;
   offset: number;
@@ -38,6 +40,19 @@ export async function listOrders(params: {
         ilike(orders.state, pattern)
       )!
     );
+  }
+
+  if (params.assistantUserIds) {
+    if (params.assistantUserIds.length === 0) {
+      conditions.push(eq(orders.status, "available"));
+    } else {
+      const teamCondition = inArray(orders.assistantUserId, params.assistantUserIds);
+      conditions.push(
+        params.includeAvailableWhenTeamScoped
+          ? or(eq(orders.status, "available"), teamCondition)!
+          : teamCondition
+      );
+    }
   }
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;

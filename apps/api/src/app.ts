@@ -1,5 +1,6 @@
-﻿import fastify from "fastify";
+import fastify from "fastify";
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import type { ApiEnv } from "./env.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerHealthRoute } from "./routes/health.js";
@@ -10,9 +11,18 @@ import { registerOrdersRoutes } from "./routes/orders.js";
 import { registerCatalogRoutes } from "./routes/catalogs.js";
 import { registerPaymentBatchRoutes } from "./routes/payment-batches.js";
 import { registerDashboardRoutes } from "./routes/dashboard.js";
+import { registerTeamAssignmentsRoutes } from "./routes/team-assignments.js";
+import { registerRoutesRoutes } from "./routes/routes.js";
 
 export function buildApp(env: ApiEnv) {
   const app = fastify();
+
+  void app.register(multipart, {
+    limits: {
+      files: 1,
+      fileSize: 10 * 1024 * 1024
+    }
+  });
 
   if (env.appEnv === "development") {
     void app.register(cors, {
@@ -26,10 +36,12 @@ export function buildApp(env: ApiEnv) {
   registerMeRoute(app, env);
   registerUsersRoutes(app, env);
   registerCatalogRoutes(app, env);
+  registerTeamAssignmentsRoutes(app, env);
   registerPoolImportRoutes(app, env);
   registerOrdersRoutes(app, env);
   registerPaymentBatchRoutes(app, env);
   registerDashboardRoutes(app, env);
+  registerRoutesRoutes(app, env);
 
   return app;
 }

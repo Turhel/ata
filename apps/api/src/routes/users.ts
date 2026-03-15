@@ -8,6 +8,7 @@ import {
   requireRole
 } from "../lib/permissions.js";
 import { buildListMeta, normalizeSearch, parsePagination } from "../lib/listing.js";
+import { changeUserRole } from "../modules/users/change-user-role.js";
 import { listOperationalUsers } from "../modules/users/list-users.js";
 import { approvePendingUser, blockUser, reactivateUser } from "../modules/users/mutate-user-status.js";
 
@@ -20,6 +21,14 @@ export function registerUsersRoutes(app: FastifyInstance, env: ApiEnv) {
     requireActiveUser(operationalUser);
     await requireRole({ env, operationalUserId: operationalUser.id, allowed: ["admin", "master"] });
     return operationalUser;
+  }
+
+  async function requireMasterOrAdminForRoleChange(request: any) {
+    const authSession = await requireAuthenticated(env, request);
+    const operationalUser = await requireOperationalUser(env, authSession.user.id);
+    requireActiveUser(operationalUser);
+    const role = await requireRole({ env, operationalUserId: operationalUser.id, allowed: ["admin", "master"] });
+    return { operationalUser, role };
   }
 
   app.get("/users", async (request, reply) => {
@@ -170,6 +179,53 @@ export function registerUsersRoutes(app: FastifyInstance, env: ApiEnv) {
       }
 
       return { ok: true, user: result.user };
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.patch("/users/:id/role", async (request, reply) => {
+    try {
+      const { operationalUser, role } = await requireMasterOrAdminForRoleChange(request);
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const body = (request.body ?? {}) as Record<string, unknown>;
+      const roleCode = typeof body.roleCode === "string" ? body.roleCode.trim() : "";
+      if (roleCode !== "master" && roleCode !== "admin" && roleCode !== "assistant" && roleCode !== "inspector") {
+        reply.status(400);
+        return { ok: false, error: "BAD_REQUEST", message: "roleCode inválido" };
+      }
+
+      const result = await changeUserRole({
+        databaseUrl: env.databaseUrl,
+        actorUserId: operationalUser.id,
+        actorRole: role,
+        targetUserId: (request.params as any).id as string,
+        roleCode
+      });
+
+      if (!result.ok) {
+        const status =
+          result.error === "NOT_FOUND" ? 404 : result.error === "FORBIDDEN" ? 403 : 400;
+        reply.status(status);
+        return result;
+      }
+
+      return result;
     } catch (error) {
       if (error instanceof PermissionError) {
         reply.status(error.statusCode);

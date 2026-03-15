@@ -16,14 +16,21 @@ export function registerDashboardRoutes(app: FastifyInstance, env: ApiEnv) {
       const authSession = await requireAuthenticated(env, request);
       const operationalUser = await requireOperationalUser(env, authSession.user.id);
       requireActiveUser(operationalUser);
-      await requireRole({ env, operationalUserId: operationalUser.id, allowed: ["admin", "master"] });
+      const role = await requireRole({ env, operationalUserId: operationalUser.id, allowed: ["admin", "master"] });
 
       if (!env.databaseUrl) {
         reply.status(500);
         return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
       }
 
-      return { ok: true, dashboard: await getAdminDashboard(env.databaseUrl) };
+      return {
+        ok: true,
+        dashboard: await getAdminDashboard({
+          databaseUrl: env.databaseUrl,
+          actorUserId: operationalUser.id,
+          actorRole: role as "admin" | "master"
+        })
+      };
     } catch (error) {
       if (error instanceof PermissionError) {
         reply.status(error.statusCode);
