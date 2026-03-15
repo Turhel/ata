@@ -46,11 +46,18 @@ export type UsersListItem = {
   authUserId: string | null;
 };
 
+export type ListMeta = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+ };
+
 export type UsersListResponse =
-  | { ok: true; users: UsersListItem[] }
+  | { ok: true; users: UsersListItem[]; meta: ListMeta }
   | {
       ok: false;
-      error: "UNAUTHORIZED" | "FORBIDDEN" | "INTERNAL_ERROR";
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "INTERNAL_ERROR";
       message: string;
     };
 
@@ -468,10 +475,10 @@ export type PaymentBatchItem = {
 };
 
 export type PaymentBatchesListResponse =
-  | { ok: true; batches: PaymentBatch[] }
+  | { ok: true; batches: PaymentBatch[]; meta: ListMeta }
   | {
       ok: false;
-      error: "UNAUTHORIZED" | "FORBIDDEN" | "INTERNAL_ERROR";
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "INTERNAL_ERROR";
       message: string;
     };
 
@@ -629,7 +636,7 @@ export type OrdersListItem = {
 };
 
 export type OrdersListResponse =
-  | { ok: true; orders: OrdersListItem[] }
+  | { ok: true; orders: OrdersListItem[]; meta: ListMeta }
   | {
       ok: false;
       error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "INTERNAL_ERROR";

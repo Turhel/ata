@@ -8,12 +8,15 @@ import {
   requireOperationalUser,
   requireRole
 } from "../lib/permissions.js";
+import { buildListMeta, normalizeSearch, parsePagination } from "../lib/listing.js";
 import { createPaymentBatch } from "../modules/payments/create-payment-batch.js";
 import { getPaymentBatchById } from "../modules/payments/get-payment-batch-by-id.js";
 import { listPaymentBatches } from "../modules/payments/list-payment-batches.js";
 import { payPaymentBatch } from "../modules/payments/pay-payment-batch.js";
 
 export function registerPaymentBatchRoutes(app: FastifyInstance, env: ApiEnv) {
+  const allowedStatuses = ["open", "closed", "paid", "cancelled"] as const;
+
   async function requireAdminOrMaster(request: any) {
     const authSession = await requireAuthenticated(env, request);
     const operationalUser = await requireOperationalUser(env, authSession.user.id);
@@ -31,7 +34,25 @@ export function registerPaymentBatchRoutes(app: FastifyInstance, env: ApiEnv) {
         return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
       }
 
-      return { ok: true, batches: await listPaymentBatches(env.databaseUrl) };
+      const query = (request.query as Record<string, unknown> | undefined) ?? {};
+      const pagination = parsePagination(query, { pageSize: 20, maxPageSize: 100 });
+      const statusRaw = typeof query.status === "string" ? query.status.trim() : "";
+      if (statusRaw && !allowedStatuses.includes(statusRaw as (typeof allowedStatuses)[number])) {
+        reply.status(400);
+        return { ok: false, error: "BAD_REQUEST", message: "Parâmetro 'status' inválido para /payment-batches" };
+      }
+      const result = await listPaymentBatches({
+        databaseUrl: env.databaseUrl,
+        status: (statusRaw || undefined) as (typeof allowedStatuses)[number] | undefined,
+        search: normalizeSearch(query.search),
+        ...pagination
+      });
+
+      return {
+        ok: true,
+        batches: result.batches,
+        meta: buildListMeta({ page: pagination.page, pageSize: pagination.pageSize, total: result.total })
+      };
     } catch (error) {
       if (error instanceof PermissionError) {
         reply.status(error.statusCode);

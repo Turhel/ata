@@ -33,6 +33,43 @@ function isBlank(value: unknown) {
   return typeof value !== "string" || value.trim().length === 0;
 }
 
+export function parseCreatePaymentBatchInput(body: unknown) {
+  const payload = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+  const referenceCode = typeof payload.referenceCode === "string" ? payload.referenceCode.trim() : "";
+  const periodStart = parseDate(payload.periodStart);
+  const periodEnd = parseDate(payload.periodEnd);
+  const rawOrderIds = Array.isArray(payload.orderIds)
+    ? payload.orderIds.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    : [];
+  const orderIds = [...new Set(rawOrderIds)];
+  const notes = typeof payload.notes === "string" ? payload.notes.trim() || null : null;
+
+  if (!referenceCode || !periodStart || !periodEnd || orderIds.length === 0) {
+    return {
+      ok: false as const,
+      error: "BAD_REQUEST" as const,
+      message: "Payload inv·lido: referenceCode, periodStart, periodEnd e orderIds s„o obrigatÛrios"
+    };
+  }
+
+  if (periodStart > periodEnd) {
+    return {
+      ok: false as const,
+      error: "BAD_REQUEST" as const,
+      message: "Payload inv·lido: periodStart n„o pode ser maior que periodEnd"
+    };
+  }
+
+  return {
+    ok: true as const,
+    referenceCode,
+    periodStart,
+    periodEnd,
+    orderIds,
+    notes
+  };
+}
+
 export type CreatePaymentBatchResult =
   | {
       ok: true;
@@ -56,23 +93,12 @@ export async function createPaymentBatch(params: {
   actorUserId: string;
   body: unknown;
 }): Promise<CreatePaymentBatchResult> {
-  const body = (params.body && typeof params.body === "object" ? params.body : {}) as Record<string, unknown>;
-  const referenceCode = typeof body.referenceCode === "string" ? body.referenceCode.trim() : "";
-  const periodStart = parseDate(body.periodStart);
-  const periodEnd = parseDate(body.periodEnd);
-  const orderIds = Array.isArray(body.orderIds)
-    ? body.orderIds.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-    : [];
-  const notes = typeof body.notes === "string" ? body.notes.trim() || null : null;
-
-  if (!referenceCode || !periodStart || !periodEnd || orderIds.length === 0) {
-    return {
-      ok: false,
-      error: "BAD_REQUEST",
-      message: "Payload inv√°lido: referenceCode, periodStart, periodEnd e orderIds s√£o obrigat√≥rios"
-    };
+  const input = parseCreatePaymentBatchInput(params.body);
+  if (!input.ok) {
+    return input;
   }
 
+  const { referenceCode, periodStart, periodEnd, orderIds, notes } = input;
   const { db } = getDb(params.databaseUrl);
 
   return db.transaction(async (tx) => {
@@ -86,7 +112,7 @@ export async function createPaymentBatch(params: {
       return {
         ok: false,
         error: "CONFLICT",
-        message: "J√° existe um lote com este referenceCode"
+        message: "J· existe um lote com este referenceCode"
       };
     }
 
@@ -118,7 +144,7 @@ export async function createPaymentBatch(params: {
       return {
         ok: false,
         error: "NOT_FOUND",
-        message: "Uma ou mais orders n√£o foram encontradas",
+        message: "Uma ou mais orders n„o foram encontradas",
         details: { orderIds: missingOrderIds }
       };
     }
@@ -155,7 +181,7 @@ export async function createPaymentBatch(params: {
       return {
         ok: false,
         error: "INVALID_STATUS",
-        message: "Uma ou mais orders n√£o est√£o eleg√≠veis para lote",
+        message: "Uma ou mais orders n„o est„o elegÌveis para lote",
         details: { orderIds: invalidStatusIds }
       };
     }
@@ -164,7 +190,7 @@ export async function createPaymentBatch(params: {
       return {
         ok: false,
         error: "ORDER_INCOMPLETE",
-        message: "Uma ou mais orders est√£o sem dados financeiros m√≠nimos",
+        message: "Uma ou mais orders est„o sem dados financeiros mÌnimos",
         details: { orderIds: incompleteIds, missingFields: [...missingFields] }
       };
     }

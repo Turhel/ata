@@ -7,10 +7,13 @@ import {
   requireOperationalUser,
   requireRole
 } from "../lib/permissions.js";
+import { buildListMeta, normalizeSearch, parsePagination } from "../lib/listing.js";
 import { listOperationalUsers } from "../modules/users/list-users.js";
 import { approvePendingUser, blockUser, reactivateUser } from "../modules/users/mutate-user-status.js";
 
 export function registerUsersRoutes(app: FastifyInstance, env: ApiEnv) {
+  const allowedStatuses = ["pending", "active", "blocked", "inactive"] as const;
+
   async function requireAdminOrMaster(request: any) {
     const authSession = await requireAuthenticated(env, request);
     const operationalUser = await requireOperationalUser(env, authSession.user.id);
@@ -28,8 +31,26 @@ export function registerUsersRoutes(app: FastifyInstance, env: ApiEnv) {
         return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL n\u00e3o definido" };
       }
 
-      const users = await listOperationalUsers(env.databaseUrl);
-      return { ok: true, users };
+      const query = (request.query as Record<string, unknown> | undefined) ?? {};
+      const statusRaw = typeof query.status === "string" ? query.status.trim() : "";
+      if (statusRaw && !allowedStatuses.includes(statusRaw as (typeof allowedStatuses)[number])) {
+        reply.status(400);
+        return { ok: false, error: "BAD_REQUEST", message: "Parâmetro 'status' inválido para /users" };
+      }
+      const status = (statusRaw || undefined) as (typeof allowedStatuses)[number] | undefined;
+      const pagination = parsePagination(query, { pageSize: 20, maxPageSize: 100 });
+      const result = await listOperationalUsers({
+        databaseUrl: env.databaseUrl,
+        status,
+        search: normalizeSearch(query.search),
+        ...pagination
+      });
+
+      return {
+        ok: true,
+        users: result.users,
+        meta: buildListMeta({ page: pagination.page, pageSize: pagination.pageSize, total: result.total })
+      };
     } catch (error) {
       if (error instanceof PermissionError) {
         reply.status(error.statusCode);

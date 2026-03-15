@@ -10,6 +10,7 @@ import {
 } from "../lib/permissions.js";
 import { orders } from "../db/schema.js";
 import { getDb } from "../lib/db.js";
+import { buildListMeta, normalizeSearch, parsePagination } from "../lib/listing.js";
 import { approveOrder, rejectOrder, requestFollowUp } from "../modules/orders/admin-review.js";
 import { claimOrder } from "../modules/orders/claim-order.js";
 import {
@@ -27,6 +28,19 @@ import { resubmitOrder } from "../modules/orders/resubmit-order.js";
 import { submitOrder } from "../modules/orders/submit-order.js";
 
 export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
+  const allowedOrderStatuses = [
+    "available",
+    "in_progress",
+    "submitted",
+    "follow_up",
+    "rejected",
+    "approved",
+    "batched",
+    "paid",
+    "cancelled",
+    "archived"
+  ] as const;
+
   async function requireAdminOrMaster(request: any) {
     const authSession = await requireAuthenticated(env, request);
     const operationalUser = await requireOperationalUser(env, authSession.user.id);
@@ -59,9 +73,28 @@ export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
         return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
       }
 
+      const query = (request.query as Record<string, unknown> | undefined) ?? {};
+      const pagination = parsePagination(query, { pageSize: 20, maxPageSize: 100 });
+      const search = normalizeSearch(query.search);
+
       if (role === "admin" || role === "master") {
-        const rows = await listOrders(env.databaseUrl);
-        return { ok: true, orders: rows };
+        const statusRaw = typeof query.status === "string" ? query.status.trim() : "";
+        if (statusRaw && !allowedOrderStatuses.includes(statusRaw as (typeof allowedOrderStatuses)[number])) {
+          reply.status(400);
+          return { ok: false, error: "BAD_REQUEST", message: "Parâmetro 'status' inválido para /orders" };
+        }
+
+        const result = await listOrders({
+          databaseUrl: env.databaseUrl,
+          status: (statusRaw || null) as (typeof allowedOrderStatuses)[number] | null,
+          search,
+          ...pagination
+        });
+        return {
+          ok: true,
+          orders: result.orders,
+          meta: buildListMeta({ page: pagination.page, pageSize: pagination.pageSize, total: result.total })
+        };
       }
 
       if (role !== "assistant") {
@@ -83,10 +116,16 @@ export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
       const rows = await listOrdersForAssistant({
         databaseUrl: env.databaseUrl,
         assistantUserId: operationalUser.id,
-        scope
+        scope,
+        search,
+        ...pagination
       });
 
-      return { ok: true, orders: rows };
+      return {
+        ok: true,
+        orders: rows.orders,
+        meta: buildListMeta({ page: pagination.page, pageSize: pagination.pageSize, total: rows.total })
+      };
     } catch (error) {
       if (error instanceof PermissionError) {
         reply.status(error.statusCode);
