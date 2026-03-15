@@ -121,6 +121,12 @@ Cada arquivo deve conter, sempre que fizer sentido:
 - `90-settings.md`
 - `91-manuals.md`
 
+### Status, erros e contingência
+
+Esta subpasta documenta telas/estados críticos para quando o app não consegue operar normalmente (ex.: sem sessão, sem permissão, conflitos, validação, indisponibilidade, offline e manutenção):
+
+- `status/README.md`
+
 ---
 
 ## Telas ainda faltando documentar

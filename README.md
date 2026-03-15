@@ -41,17 +41,13 @@ O sistema é de uso **interno**, com controle manual de acesso e roles definidas
 - React
 - Vite
 - TypeScript
-- React Router
-- TanStack Query
-- Tailwind
-- shadcn/ui
+- UI dev mínima sem router/query/design system final ainda
 
 ### Backend
 
 - Node.js
 - Fastify
 - TypeScript
-- Zod
 - Drizzle ORM
 
 ### Banco
@@ -161,25 +157,24 @@ Os documentos oficiais do projeto ficam em `docs/`.
 
 ## Estado atual do projeto
 
-O projeto está em fase de **estruturação inicial**.
+O projeto já passou da estruturação inicial e está em fase de **núcleo operacional inicial**.
 
 ### Fase atual
 
-* documentação base do projeto
-* esqueleto do monorepo criado (`apps/web`, `apps/api`, `packages/*`)
-* API com endpoint `GET /health`
-* frontend validando comunicação com a API via `/health`
+* monorepo funcional com `apps/web`, `apps/api`, `packages/contracts` e `packages/shared`
+* API Fastify com `GET /health`, `GET /me`, auth embutida e rotas iniciais de `users`, `pool-import` e `orders`
+* frontend em modo dev com sign-in, `/me`, listagem de usuários e filas mínimas de orders
 * PostgreSQL local via Docker (`infra/docker/docker-compose.dev.yml`)
-* Drizzle configurado para o schema operacional (`public.*`) + migrations
-* Better Auth embutido na API (schema `auth.*` via Better Auth CLI)
-* endpoints: `GET /health` e `GET /me`
-* seed operacional (`db:seed`) + helper de vínculo (`dev:link-auth-user`)
+* Drizzle configurado para o schema operacional (`public.*`) com migrations e seed
+* Better Auth embutido na API, com schema `auth.*` gerenciado fora do Drizzle operacional
+* workflow inicial de orders já implementado: import, leitura, claim, submit, resubmit, review e eventos
 
 ### Próximos passos
 
-* consolidar fluxo de auth no frontend (signup/signin + persistência de sessão)
-* adicionar CORS mínimo para desenvolvimento (se necessário para browser)
-* iniciar autorização baseada em roles/status na API (sem domínio ainda)
+* consolidar a leitura/escrita restante do núcleo de orders (`order_notes`, filtros, paginação, catálogos)
+* evoluir importação do pool para parser real de `.xlsx` e resolução de catálogos
+* iniciar o bloco de financeiro (`payment_batches` e `payment_batch_items`)
+* substituir a UI dev do frontend por rotas/telas reais do produto
 
 ---
 

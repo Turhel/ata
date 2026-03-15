@@ -7,6 +7,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgTable,
   text,
@@ -77,6 +78,13 @@ export const importActionEnum = pgEnum("import_action", [
   "updated",
   "ignored",
   "failed"
+]);
+
+export const paymentBatchStatusEnum = pgEnum("payment_batch_status", [
+  "open",
+  "closed",
+  "paid",
+  "cancelled"
 ]);
 
 export const users = pgTable(
@@ -192,6 +200,106 @@ export const poolImportBatches = pgTable(
   ]
 );
 
+export const clients = pgTable(
+  "clients",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    clientCode: varchar("client_code", { length: 80 }).notNull(),
+    name: varchar("name", { length: 255 }),
+    description: text("description"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    uniqueIndex("clients_client_code_idx").on(t.clientCode),
+    index("clients_is_active_idx").on(t.isActive)
+  ]
+);
+
+export const workTypes = pgTable(
+  "work_types",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    code: varchar("code", { length: 50 }).notNull(),
+    name: varchar("name", { length: 120 }),
+    description: text("description"),
+    isActive: boolean("is_active").notNull().default(true),
+    defaultPaymentAmountAssistant: numeric("default_payment_amount_assistant", {
+      precision: 12,
+      scale: 2
+    }),
+    defaultPaymentAmountInspector: numeric("default_payment_amount_inspector", {
+      precision: 12,
+      scale: 2
+    }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    uniqueIndex("work_types_code_idx").on(t.code),
+    index("work_types_is_active_idx").on(t.isActive)
+  ]
+);
+
+export const inspectors = pgTable(
+  "inspectors",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    fullName: varchar("full_name", { length: 255 }).notNull(),
+    email: varchar("email", { length: 255 }),
+    phone: varchar("phone", { length: 50 }),
+    status: varchar("status", { length: 30 }).notNull().default("active"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [index("inspectors_status_idx").on(t.status), index("inspectors_full_name_idx").on(t.fullName)]
+);
+
+export const inspectorAccounts = pgTable(
+  "inspector_accounts",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    accountCode: varchar("account_code", { length: 50 }).notNull(),
+    accountType: varchar("account_type", { length: 30 }).notNull().default("field"),
+    description: varchar("description", { length: 255 }),
+    currentInspectorId: uuid("current_inspector_id").references(() => inspectors.id),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    uniqueIndex("inspector_accounts_account_code_idx").on(t.accountCode),
+    index("inspector_accounts_account_type_idx").on(t.accountType),
+    index("inspector_accounts_current_inspector_id_idx").on(t.currentInspectorId)
+  ]
+);
+
+export const inspectorAccountAssignments = pgTable(
+  "inspector_account_assignments",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    inspectorAccountId: uuid("inspector_account_id")
+      .notNull()
+      .references(() => inspectorAccounts.id),
+    inspectorId: uuid("inspector_id")
+      .notNull()
+      .references(() => inspectors.id),
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date"),
+    isActive: boolean("is_active").notNull().default(true),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    index("inspector_account_assignments_inspector_account_id_idx").on(t.inspectorAccountId),
+    index("inspector_account_assignments_inspector_id_idx").on(t.inspectorId),
+    index("inspector_account_assignments_is_active_idx").on(t.isActive)
+  ]
+);
+
 export const orders = pgTable(
   "orders",
   {
@@ -202,16 +310,16 @@ export const orders = pgTable(
     sourceStatus: sourceOrderStatusEnum("source_status").notNull(),
     status: orderStatusEnum("status").notNull().default("available"),
 
-    clientId: uuid("client_id"),
+    clientId: uuid("client_id").references(() => clients.id),
     residentName: varchar("resident_name", { length: 255 }),
     addressLine1: varchar("address_line_1", { length: 255 }),
     addressLine2: varchar("address_line_2", { length: 255 }),
     city: varchar("city", { length: 120 }),
     state: varchar("state", { length: 50 }),
     zipCode: varchar("zip_code", { length: 30 }),
-    workTypeId: uuid("work_type_id"),
-    inspectorAccountId: uuid("inspector_account_id"),
-    assignedInspectorId: uuid("assigned_inspector_id"),
+    workTypeId: uuid("work_type_id").references(() => workTypes.id),
+    inspectorAccountId: uuid("inspector_account_id").references(() => inspectorAccounts.id),
+    assignedInspectorId: uuid("assigned_inspector_id").references(() => inspectors.id),
 
     assistantUserId: uuid("assistant_user_id").references(() => users.id),
     sourceImportBatchId: uuid("source_import_batch_id").references(
@@ -307,5 +415,90 @@ export const orderEvents = pgTable(
     index("order_events_event_type_idx").on(t.eventType),
     index("order_events_performed_by_user_id_idx").on(t.performedByUserId),
     index("order_events_created_at_idx").on(t.createdAt)
+  ]
+);
+
+export const orderNotes = pgTable(
+  "order_notes",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id),
+    authorUserId: uuid("author_user_id")
+      .notNull()
+      .references(() => users.id),
+    noteType: varchar("note_type", { length: 30 }).notNull(),
+    content: text("content").notNull(),
+    isInternal: boolean("is_internal").notNull().default(true),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    index("order_notes_order_id_idx").on(t.orderId),
+    index("order_notes_author_user_id_idx").on(t.authorUserId),
+    index("order_notes_note_type_idx").on(t.noteType),
+    index("order_notes_created_at_idx").on(t.createdAt)
+  ]
+);
+
+export const paymentBatches = pgTable(
+  "payment_batches",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    referenceCode: varchar("reference_code", { length: 80 }).notNull(),
+    status: paymentBatchStatusEnum("status").notNull().default("open"),
+    periodStart: date("period_start").notNull(),
+    periodEnd: date("period_end").notNull(),
+    totalItems: integer("total_items").notNull().default(0),
+    totalAmount: numeric("total_amount", { precision: 14, scale: 2 }).notNull().default("0"),
+    createdByUserId: uuid("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    closedByUserId: uuid("closed_by_user_id").references(() => users.id),
+    paidByUserId: uuid("paid_by_user_id").references(() => users.id),
+    closedAt: timestamp("closed_at"),
+    paidAt: timestamp("paid_at"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    uniqueIndex("payment_batches_reference_code_idx").on(t.referenceCode),
+    index("payment_batches_status_idx").on(t.status),
+    index("payment_batches_period_idx").on(t.periodStart, t.periodEnd)
+  ]
+);
+
+export const paymentBatchItems = pgTable(
+  "payment_batch_items",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    paymentBatchId: uuid("payment_batch_id")
+      .notNull()
+      .references(() => paymentBatches.id),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id),
+    assistantUserId: uuid("assistant_user_id").references(() => users.id),
+    inspectorId: uuid("inspector_id").references(() => inspectors.id),
+    inspectorAccountId: uuid("inspector_account_id").references(() => inspectorAccounts.id),
+    clientId: uuid("client_id").references(() => clients.id),
+    workTypeId: uuid("work_type_id").references(() => workTypes.id),
+    externalOrderCode: varchar("external_order_code", { length: 120 }).notNull(),
+    amountAssistant: numeric("amount_assistant", { precision: 12, scale: 2 }).notNull().default("0"),
+    amountInspector: numeric("amount_inspector", { precision: 12, scale: 2 }).notNull().default("0"),
+    quantity: integer("quantity").notNull().default(1),
+    snapshotPayload: jsonb("snapshot_payload"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    index("payment_batch_items_payment_batch_id_idx").on(t.paymentBatchId),
+    index("payment_batch_items_order_id_idx").on(t.orderId),
+    index("payment_batch_items_assistant_user_id_idx").on(t.assistantUserId),
+    index("payment_batch_items_inspector_id_idx").on(t.inspectorId),
+    index("payment_batch_items_inspector_account_id_idx").on(t.inspectorAccountId),
+    uniqueIndex("payment_batch_items_batch_order_idx").on(t.paymentBatchId, t.orderId)
   ]
 );

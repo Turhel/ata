@@ -7,6 +7,9 @@ import { registerMeRoute } from "./routes/me.js";
 import { registerUsersRoutes } from "./routes/users.js";
 import { registerPoolImportRoutes } from "./routes/pool-import.js";
 import { registerOrdersRoutes } from "./routes/orders.js";
+import { registerCatalogRoutes } from "./routes/catalogs.js";
+import { registerPaymentBatchRoutes } from "./routes/payment-batches.js";
+import { registerDashboardRoutes } from "./routes/dashboard.js";
 
 export function buildApp(env: ApiEnv) {
   const app = fastify();
@@ -22,8 +25,11 @@ export function buildApp(env: ApiEnv) {
   registerAuthRoutes(app, env);
   registerMeRoute(app, env);
   registerUsersRoutes(app, env);
+  registerCatalogRoutes(app, env);
   registerPoolImportRoutes(app, env);
   registerOrdersRoutes(app, env);
+  registerPaymentBatchRoutes(app, env);
+  registerDashboardRoutes(app, env);
 
   return app;
 }

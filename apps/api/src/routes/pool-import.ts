@@ -8,7 +8,9 @@ import {
   requireRole
 } from "../lib/permissions.js";
 import { getPoolImportBatchById } from "../modules/orders/get-pool-import-batch.js";
+import { getPoolImportFailures } from "../modules/orders/get-pool-import-failures.js";
 import { importPoolFromJsonNormalized } from "../modules/orders/import-pool-json.js";
+import { reprocessPoolImportItem } from "../modules/orders/reprocess-pool-import-item.js";
 
 export function registerPoolImportRoutes(app: FastifyInstance, env: ApiEnv) {
   async function requireAdminOrMaster(request: any) {
@@ -100,6 +102,82 @@ export function registerPoolImportRoutes(app: FastifyInstance, env: ApiEnv) {
       }
 
       return { ok: true, ...result };
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.get("/pool-import/batches/:id/failures", async (request, reply) => {
+    try {
+      await requireAdminOrMaster(request);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const id = (request.params as any).id as string;
+      const result = await getPoolImportFailures({ databaseUrl: env.databaseUrl, batchId: id });
+      if (!result) {
+        reply.status(404);
+        return { ok: false, error: "NOT_FOUND", message: "Batch não encontrado" };
+      }
+
+      return { ok: true, ...result };
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.post("/pool-import/items/:id/reprocess", async (request, reply) => {
+    try {
+      const { operationalUser } = await requireAdminOrMaster(request);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const id = (request.params as any).id as string;
+      const result = await reprocessPoolImportItem({
+        databaseUrl: env.databaseUrl,
+        importItemId: id,
+        reprocessedByUserId: operationalUser.id
+      });
+
+      if (!result) {
+        reply.status(404);
+        return { ok: false, error: "NOT_FOUND", message: "Item de importação não encontrado" };
+      }
+
+      if (!result.ok) {
+        reply.status(400);
+        return { ok: false, error: result.error, message: result.message };
+      }
+
+      return result;
     } catch (error) {
       if (error instanceof PermissionError) {
         reply.status(error.statusCode);

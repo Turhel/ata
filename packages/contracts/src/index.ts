@@ -68,6 +68,146 @@ export type ImportBatchStatus = "processing" | "completed" | "failed" | "partial
 
 export type ImportAction = "created" | "updated" | "ignored" | "failed";
 
+export type ClientItem = {
+  id: string;
+  clientCode: string;
+  name: string | null;
+  description: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ClientsListResponse =
+  | { ok: true; clients: ClientItem[] }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type ClientMutationRequest = {
+  clientCode: string;
+  name?: string | null;
+  description?: string | null;
+  isActive?: boolean;
+};
+
+export type ClientMutationResponse =
+  | { ok: true; client: ClientItem }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "NOT_FOUND" | "CONFLICT" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type WorkTypeItem = {
+  id: string;
+  code: string;
+  name: string | null;
+  description: string | null;
+  isActive: boolean;
+  defaultPaymentAmountAssistant: string | null;
+  defaultPaymentAmountInspector: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WorkTypesListResponse =
+  | { ok: true; workTypes: WorkTypeItem[] }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type WorkTypeMutationRequest = {
+  code: string;
+  name?: string | null;
+  description?: string | null;
+  isActive?: boolean;
+  defaultPaymentAmountAssistant?: string | number | null;
+  defaultPaymentAmountInspector?: string | number | null;
+};
+
+export type WorkTypeMutationResponse =
+  | { ok: true; workType: WorkTypeItem }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "NOT_FOUND" | "CONFLICT" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type InspectorItem = {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  status: string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InspectorsListResponse =
+  | { ok: true; inspectors: InspectorItem[] }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type InspectorMutationRequest = {
+  fullName: string;
+  email?: string | null;
+  phone?: string | null;
+  status?: string;
+  notes?: string | null;
+};
+
+export type InspectorMutationResponse =
+  | { ok: true; inspector: InspectorItem }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "NOT_FOUND" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type InspectorAccountItem = {
+  id: string;
+  accountCode: string;
+  accountType: string;
+  description: string | null;
+  currentInspectorId: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InspectorAccountsListResponse =
+  | { ok: true; inspectorAccounts: InspectorAccountItem[] }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type InspectorAccountMutationRequest = {
+  accountCode: string;
+  accountType?: string;
+  description?: string | null;
+  currentInspectorId?: string | null;
+  isActive?: boolean;
+};
+
+export type InspectorAccountMutationResponse =
+  | { ok: true; inspectorAccount: InspectorAccountItem }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "NOT_FOUND" | "CONFLICT" | "INTERNAL_ERROR";
+      message: string;
+    };
+
 export type PoolImportNormalizedItem = {
   lineNumber: number;
   externalOrderCode: string;
@@ -141,11 +281,66 @@ export type PoolImportBatchItem = {
   createdAt: string;
 };
 
+export type PoolImportFailureCategory =
+  | "catalog_resolution"
+  | "invalid_input"
+  | "internal_error";
+
+export type PoolImportFailureItem = {
+  id: string;
+  lineNumber: number;
+  externalOrderCode: string;
+  sourceStatus: SourceOrderStatus;
+  sourceInspectorAccountCode: string | null;
+  sourceClientCode: string | null;
+  sourceWorkTypeCode: string | null;
+  importAction: "failed";
+  matchedOrderId: string | null;
+  errorMessage: string | null;
+  rawPayload: unknown;
+  createdAt: string;
+  failureCategory: PoolImportFailureCategory;
+  unresolvedReferences: string[];
+};
+
 export type PoolImportBatchGetResponse =
   | { ok: true; batch: PoolImportBatch; items: PoolImportBatchItem[] }
   | {
       ok: false;
       error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type PoolImportFailuresGetResponse =
+  | { ok: true; batch: PoolImportBatch; failures: PoolImportFailureItem[] }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type PoolImportReprocessedItem = {
+  id: string;
+  batchId: string;
+  lineNumber: number;
+  externalOrderCode: string;
+  sourceStatus: SourceOrderStatus;
+  sourceInspectorAccountCode: string | null;
+  sourceClientCode: string | null;
+  sourceWorkTypeCode: string | null;
+  rawPayload: unknown;
+  matchedOrderId: string | null;
+  importAction: ImportAction;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PoolImportItemReprocessResponse =
+  | { ok: true; batch: PoolImportBatch; item: PoolImportReprocessedItem }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "BAD_REQUEST" | "INTERNAL_ERROR";
       message: string;
     };
 export type OrderStatus =
@@ -159,6 +354,263 @@ export type OrderStatus =
   | "paid"
   | "cancelled"
   | "archived";
+
+export type OrderEventType =
+  | "created"
+  | "claimed"
+  | "updated"
+  | "submitted"
+  | "follow_up_requested"
+  | "resubmitted"
+  | "rejected"
+  | "approved"
+  | "returned_to_pool"
+  | "batched"
+  | "paid"
+  | "cancelled_from_source"
+  | "archived";
+
+export type OrderEvent = {
+  id: string;
+  orderId: string;
+  eventType: OrderEventType;
+  fromStatus: OrderStatus | null;
+  toStatus: OrderStatus | null;
+  performedByUserId: string;
+  reason: string | null;
+  metadata: unknown;
+  createdAt: string;
+};
+
+export type OrderEventsListResponse =
+  | { ok: true; events: OrderEvent[] }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type OrderNote = {
+  id: string;
+  orderId: string;
+  authorUserId: string;
+  noteType: string;
+  content: string;
+  isInternal: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type OrderNotesListResponse =
+  | { ok: true; notes: OrderNote[] }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type OrderNoteCreateRequest = {
+  noteType?: string;
+  content: string;
+  isInternal?: boolean;
+};
+
+export type OrderNoteCreateResponse =
+  | { ok: true; note: OrderNote }
+  | {
+      ok: false;
+      error:
+        | "UNAUTHORIZED"
+        | "FORBIDDEN"
+        | "NOT_FOUND"
+        | "BAD_REQUEST"
+        | "INVALID_STATUS"
+        | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type PaymentBatchStatus = "open" | "closed" | "paid" | "cancelled";
+
+export type PaymentBatch = {
+  id: string;
+  referenceCode: string;
+  status: PaymentBatchStatus;
+  periodStart: string;
+  periodEnd: string;
+  totalItems: number;
+  totalAmount: string;
+  createdByUserId: string;
+  closedByUserId: string | null;
+  paidByUserId: string | null;
+  closedAt: string | null;
+  paidAt: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PaymentBatchItem = {
+  id: string;
+  paymentBatchId: string;
+  orderId: string;
+  assistantUserId: string | null;
+  inspectorId: string | null;
+  inspectorAccountId: string | null;
+  clientId: string | null;
+  workTypeId: string | null;
+  externalOrderCode: string;
+  amountAssistant: string;
+  amountInspector: string;
+  quantity: number;
+  snapshotPayload: unknown;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PaymentBatchesListResponse =
+  | { ok: true; batches: PaymentBatch[] }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type PaymentBatchGetResponse =
+  | { ok: true; batch: PaymentBatch; items: PaymentBatchItem[] }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type PaymentBatchCreateRequest = {
+  referenceCode: string;
+  periodStart: string;
+  periodEnd: string;
+  orderIds: string[];
+  notes?: string | null;
+};
+
+export type PaymentBatchCreateResponse =
+  | {
+      ok: true;
+      batch: {
+        id: string;
+        referenceCode: string;
+        status: "open";
+        totalItems: number;
+        totalAmount: string;
+      };
+    }
+  | {
+      ok: false;
+      error:
+        | "UNAUTHORIZED"
+        | "FORBIDDEN"
+        | "BAD_REQUEST"
+        | "NOT_FOUND"
+        | "CONFLICT"
+        | "ORDER_INCOMPLETE"
+        | "INVALID_STATUS"
+        | "INTERNAL_ERROR";
+      message: string;
+      details?: { orderIds?: string[]; missingFields?: string[] };
+    };
+
+export type PaymentBatchCloseResponse =
+  | {
+      ok: true;
+      batch: {
+        id: string;
+        status: "closed";
+        closedAt: string | null;
+        closedByUserId: string | null;
+      };
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_STATUS" | "ORDER_INCOMPLETE" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type PaymentBatchPayResponse =
+  | {
+      ok: true;
+      batch: {
+        id: string;
+        status: "paid";
+        paidAt: string | null;
+        paidByUserId: string | null;
+      };
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_STATUS" | "ORDER_INCOMPLETE" | "INTERNAL_ERROR";
+      message: string;
+      details?: { orderIds?: string[] };
+    };
+
+export type AdminDashboardResponse =
+  | {
+      ok: true;
+      dashboard: {
+        users: {
+          pending: number;
+          active: number;
+          blocked: number;
+        };
+        orders: {
+          available: number;
+          inProgress: number;
+          submitted: number;
+          followUp: number;
+          rejected: number;
+          approved: number;
+          batched: number;
+          paid: number;
+          cancelled: number;
+        };
+        payments: {
+          open: number;
+          closed: number;
+          paid: number;
+          cancelled: number;
+        };
+        imports: {
+          processing: number;
+          completed: number;
+          partiallyCompleted: number;
+          failed: number;
+        };
+      };
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type AssistantDashboardResponse =
+  | {
+      ok: true;
+      dashboard: {
+        availableOrders: number;
+        mine: {
+          inProgress: number;
+          submitted: number;
+          followUp: number;
+          rejected: number;
+          approved: number;
+          batched: number;
+          paid: number;
+        };
+      };
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "INTERNAL_ERROR";
+      message: string;
+    };
 
 export type OrdersListItem = {
   id: string;
@@ -269,6 +721,78 @@ export type OrderSubmitResponse =
         | "INTERNAL_ERROR";
       message: string;
       details?: { missingFields?: string[] };
+    };
+
+export type OrderResubmitResponse =
+  | {
+      ok: true;
+      order: {
+        id: string;
+        status: OrderStatus;
+        submittedAt: string | null;
+      };
+    }
+  | {
+      ok: false;
+      error:
+        | "UNAUTHORIZED"
+        | "FORBIDDEN"
+        | "NOT_FOUND"
+        | "INVALID_STATUS"
+        | "ORDER_CANCELLED"
+        | "ORDER_INCOMPLETE"
+        | "INTERNAL_ERROR";
+      message: string;
+      details?: { missingFields?: string[] };
+    };
+
+export type OrderPatchRequest = {
+  residentName?: string | null;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  workTypeId?: string | null;
+  isRush?: boolean;
+  isVacant?: boolean;
+  inspectorAccountId?: string | null;
+  assignedInspectorId?: string | null;
+  clientId?: string | null;
+};
+
+export type OrderPatchResponse =
+  | {
+      ok: true;
+      order: {
+        id: string;
+        status: OrderStatus;
+        updatedAt: string;
+        residentName: string | null;
+        addressLine1: string | null;
+        addressLine2: string | null;
+        city: string | null;
+        state: string | null;
+        zipCode: string | null;
+        workTypeId: string | null;
+        isRush: boolean;
+        isVacant: boolean;
+        clientId?: string | null;
+        inspectorAccountId?: string | null;
+        assignedInspectorId?: string | null;
+      };
+    }
+  | {
+      ok: false;
+      error:
+        | "UNAUTHORIZED"
+        | "FORBIDDEN"
+        | "NOT_FOUND"
+        | "INVALID_STATUS"
+        | "BAD_REQUEST"
+        | "INTERNAL_ERROR";
+      message: string;
+      details?: { forbiddenFields?: string[]; invalidFields?: string[] };
     };
 export type OrderFollowUpRequest = { reason: string };
 export type OrderRejectRequest = { reason: string };

@@ -71,3 +71,20 @@ Este arquivo é o ponto de entrada de `docs/telas/` e lista **telas reais** e se
 
 - `90-settings.md`
 - `91-manuals.md`
+
+---
+
+## Status, erros e contingência
+
+> Referência específica para implementação de estados críticos do app (sem duplicar `docs/frontend/ESTADOS_GERAIS.md`).
+
+- `status/README.md`
+- `status/401-unauthorized.md`
+- `status/403-forbidden.md`
+- `status/404-not-found.md`
+- `status/409-conflict.md`
+- `status/422-validation.md`
+- `status/500-internal-error.md`
+- `status/502-503-unavailable.md`
+- `status/offline-ou-reconectando.md`
+- `status/maintenance.md`

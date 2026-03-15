@@ -33,3 +33,4 @@ As **telas reais** (fluxos e variações por role) vivem em `docs/telas/`, princ
 
 - `ROTAS_CANONICAS.md`
 - `SIDEBAR_POR_ROLE.md`
+- `STATUS_STATES_E_COMPONENTES.md` (padronização de estados críticos: erro/contingência)

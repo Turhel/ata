@@ -20,6 +20,34 @@ export default defineConfig({
       "/users": {
         target: "http://localhost:3001",
         changeOrigin: true
+      },
+      "/orders": {
+        target: "http://localhost:3001",
+        changeOrigin: true
+      },
+      "/pool-import": {
+        target: "http://localhost:3001",
+        changeOrigin: true
+      },
+      "/clients": {
+        target: "http://localhost:3001",
+        changeOrigin: true
+      },
+      "/work-types": {
+        target: "http://localhost:3001",
+        changeOrigin: true
+      },
+      "/inspectors": {
+        target: "http://localhost:3001",
+        changeOrigin: true
+      },
+      "/inspector-accounts": {
+        target: "http://localhost:3001",
+        changeOrigin: true
+      },
+      "/dashboard": {
+        target: "http://localhost:3001",
+        changeOrigin: true
       }
     }
   }

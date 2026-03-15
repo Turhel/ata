@@ -1,9 +1,9 @@
-﻿import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { orderEvents, orders } from "../../db/schema.js";
 import { getDb } from "../../lib/db.js";
 
-export type SubmitOrderResult =
+export type ResubmitOrderResult =
   | { ok: true; order: { id: string; status: string; submittedAt: Date | string | null } }
   | {
       ok: false;
@@ -16,11 +16,11 @@ function isBlank(value: unknown) {
   return typeof value !== "string" || value.trim().length === 0;
 }
 
-export async function submitOrder(params: {
+export async function resubmitOrder(params: {
   databaseUrl: string;
   orderId: string;
   actorUserId: string;
-}): Promise<SubmitOrderResult> {
+}): Promise<ResubmitOrderResult> {
   const { db } = getDb(params.databaseUrl);
 
   return db.transaction(async (tx) => {
@@ -50,22 +50,14 @@ export async function submitOrder(params: {
     }
 
     if (row.status === "cancelled" || row.sourceStatus === "Canceled") {
-      return { ok: false, error: "ORDER_CANCELLED", message: "Order cancelada não pode ser enviada" };
+      return { ok: false, error: "ORDER_CANCELLED", message: "Order cancelada não pode ser reenviada" };
     }
 
-    if (row.status === "follow_up") {
+    if (row.status !== "follow_up") {
       return {
         ok: false,
         error: "INVALID_STATUS",
-        message: "Order em follow-up deve ser reenviada via POST /orders/:id/resubmit"
-      };
-    }
-
-    if (row.status !== "in_progress") {
-      return {
-        ok: false,
-        error: "INVALID_STATUS",
-        message: `Order não pode ser enviada para revisão (status=${row.status})`
+        message: `Order não pode ser reenviada para revisão (status=${row.status})`
       };
     }
 
@@ -81,7 +73,7 @@ export async function submitOrder(params: {
       return {
         ok: false,
         error: "ORDER_INCOMPLETE",
-        message: `Order incompleta para envio (faltando: ${missingFields.join(", ")})`,
+        message: `Order incompleta para reenvio (faltando: ${missingFields.join(", ")})`,
         details: { missingFields }
       };
     }
@@ -93,28 +85,22 @@ export async function submitOrder(params: {
         status: "submitted",
         updatedAt: sql`now()`
       })
-      .where(
-        and(
-          eq(orders.id, params.orderId),
-          eq(orders.assistantUserId, params.actorUserId),
-          eq(orders.status, "in_progress")
-        )
-      )
+      .where(and(eq(orders.id, params.orderId), eq(orders.assistantUserId, params.actorUserId), eq(orders.status, "follow_up")))
       .returning({ id: orders.id, status: orders.status, submittedAt: orders.submittedAt });
 
     if (!updated[0]) {
       return {
         ok: false,
         error: "INVALID_STATUS",
-        message: "Order mudou de status durante o submit (concorrência)"
+        message: "Order mudou de status durante o reenvio (concorrência)"
       };
     }
 
     await tx.insert(orderEvents).values({
       id: randomUUID(),
       orderId: params.orderId,
-      eventType: "submitted",
-      fromStatus: "in_progress",
+      eventType: "resubmitted",
+      fromStatus: "follow_up",
       toStatus: "submitted",
       performedByUserId: params.actorUserId,
       metadata: { actorUserId: params.actorUserId }
@@ -123,3 +109,4 @@ export async function submitOrder(params: {
     return { ok: true, order: updated[0] };
   });
 }
+
