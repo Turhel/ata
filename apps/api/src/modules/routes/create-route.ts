@@ -173,6 +173,11 @@ export async function createRoute(params: {
       city: routeCandidates.city,
       state: routeCandidates.state,
       zipCode: routeCandidates.zipCode,
+      latitude: routeCandidates.latitude,
+      longitude: routeCandidates.longitude,
+      geocodeStatus: routeCandidates.geocodeStatus,
+      geocodeSource: routeCandidates.geocodeSource,
+      geocodedAt: routeCandidates.geocodedAt,
       dueDate: routeCandidates.dueDate,
       isRush: routeCandidates.isRush,
       orderId: routeCandidates.orderId,
@@ -274,6 +279,11 @@ export async function createRoute(params: {
         city: candidate.city,
         state: candidate.state,
         zipCode: candidate.zipCode,
+        latitude: candidate.latitude,
+        longitude: candidate.longitude,
+        geocodeStatus: candidate.geocodeStatus,
+        geocodeSource: candidate.geocodeSource,
+        geocodedAt: candidate.geocodedAt,
         dueDate: candidate.dueDate,
         updatedAt: sql`now()`
       }))

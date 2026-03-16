@@ -6,6 +6,7 @@ export type ApiEnv = {
   betterAuthSecret: string;
   betterAuthUrl: string;
   databaseUrl?: string;
+  nominatimBaseUrl?: string;
 };
 
 export function getEnv(): ApiEnv {
@@ -36,6 +37,10 @@ export function getEnv(): ApiEnv {
   }
 
   const betterAuthUrl = process.env.BETTER_AUTH_URL ?? `http://localhost:${port}`;
+  const nominatimBaseUrl =
+    process.env.NOMINATIM_BASE_URL && process.env.NOMINATIM_BASE_URL.trim() !== ""
+      ? process.env.NOMINATIM_BASE_URL.trim().replace(/\/+$/, "")
+      : undefined;
 
-  return { host, port, appEnv, appWebUrl, betterAuthSecret, betterAuthUrl, databaseUrl };
+  return { host, port, appEnv, appWebUrl, betterAuthSecret, betterAuthUrl, databaseUrl, nominatimBaseUrl };
 }

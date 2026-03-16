@@ -311,6 +311,49 @@ export type InspectorSelfProfilePatchRequest = {
 
 export type InspectorSelfProfilePatchResponse = InspectorSelfProfileResponse;
 
+export type RouteListItem = {
+  id: string;
+  routeDate: string;
+  sourceBatchId: string;
+  inspectorAccountId: string;
+  inspectorAccountCode: string;
+  inspectorId: string | null;
+  assistantUserId: string | null;
+  originCity: string | null;
+  optimizationMode: string;
+  status: string;
+  version: number;
+  totalStops: number;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RoutesListResponse =
+  | { ok: true; routes: RouteListItem[]; meta: ListMeta }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type RouteSourceBatchGeocodeResponse =
+  | {
+      ok: true;
+      batchId: string;
+      totalCandidates: number;
+      processedCandidates: number;
+      resolvedCandidates: number;
+      notFoundCandidates: number;
+      failedCandidates: number;
+      skippedCandidates: number;
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "BAD_REQUEST" | "INTERNAL_ERROR";
+      message: string;
+    };
+
 export type InspectorAccountItem = {
   id: string;
   accountCode: string;

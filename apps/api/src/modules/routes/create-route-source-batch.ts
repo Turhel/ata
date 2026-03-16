@@ -92,6 +92,7 @@ export async function createRouteSourceBatchFromXlsx(params: {
         city: c.city,
         state: c.state,
         zipCode: c.zipCode,
+        geocodeStatus: "pending",
         dueDate: c.dueDate,
         startDate: c.startDate,
         hasWindow: c.hasWindow,

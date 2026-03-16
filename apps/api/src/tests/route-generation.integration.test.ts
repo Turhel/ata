@@ -253,7 +253,13 @@ integration("routes: cria rota otimizada usando a cidade de partida do inspetor"
   const routeBody = getRouteResponse.json() as {
     ok: true;
     route: { originCity: string | null; optimizationMode: string };
-    stops: Array<{ city: string | null }>;
+    stops: Array<{
+      city: string | null;
+      geocodeStatus: string;
+      geocodeSource: string | null;
+      latitude: string | null;
+      longitude: string | null;
+    }>;
   };
 
   assert.equal(routeBody.route.originCity, "HINESVILLE");
@@ -262,4 +268,40 @@ integration("routes: cria rota otimizada usando a cidade de partida do inspetor"
   assert.equal(normalizeCity(routeBody.stops[0]?.city), "HINESVILLE");
   assert.notEqual(normalizeCity(routeBody.stops[0]?.city), normalizeCity(originalFirstCity));
   assert.ok(routeBody.stops.slice(0, 3).every((stop) => normalizeCity(stop.city) === "HINESVILLE"));
+  assert.equal(routeBody.stops[0]?.geocodeStatus, "pending");
+  assert.equal(routeBody.stops[0]?.geocodeSource, null);
+  assert.equal(routeBody.stops[0]?.latitude, null);
+  assert.equal(routeBody.stops[0]?.longitude, null);
+
+  const listRoutesResponse = await app.inject({
+    method: "GET",
+    url: "/routes?routeDate=2026-03-10&inspectorAccountCode=ATAVEND04",
+    headers: {
+      cookie: admin.cookieHeader,
+      origin: appWebUrl,
+      host: "localhost:3001"
+    }
+  });
+
+  assert.equal(listRoutesResponse.statusCode, 200);
+  const listRoutesBody = listRoutesResponse.json() as {
+    ok: true;
+    routes: Array<{
+      id: string;
+      routeDate: string;
+      inspectorAccountCode: string;
+      originCity: string | null;
+      optimizationMode: string;
+      totalStops: number;
+    }>;
+    meta: { total: number };
+  };
+
+  assert.equal(listRoutesBody.meta.total, 1);
+  assert.equal(listRoutesBody.routes[0]?.id, createRouteBody.routeId);
+  assert.equal(listRoutesBody.routes[0]?.routeDate, "2026-03-10");
+  assert.equal(listRoutesBody.routes[0]?.inspectorAccountCode, "ATAVEND04");
+  assert.equal(listRoutesBody.routes[0]?.originCity, "HINESVILLE");
+  assert.equal(listRoutesBody.routes[0]?.optimizationMode, "heuristic_city_zip");
+  assert.equal(listRoutesBody.routes[0]?.totalStops, originalAccountCandidates.length);
 });
