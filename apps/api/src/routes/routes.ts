@@ -14,6 +14,8 @@ import {
 import { normalizeApiError } from "../lib/api-errors.js";
 import { createRouteSourceBatchFromXlsx } from "../modules/routes/create-route-source-batch.js";
 import { createRoute } from "../modules/routes/create-route.js";
+import { exportRouteEmailPreview } from "../modules/routes/export-route-email-preview.js";
+import { exportRouteGpx } from "../modules/routes/export-route-gpx.js";
 import { geocodeRouteSourceBatch } from "../modules/routes/geocode-route-source-batch.js";
 import { getRouteById } from "../modules/routes/get-route-by-id.js";
 import { importRouteFromGpx } from "../modules/routes/import-route-from-gpx.js";
@@ -432,6 +434,104 @@ export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
         databaseUrl: env.databaseUrl,
         routeId: id,
         publishedByUserId: operationalUser.id
+      });
+
+      if (!result.ok) {
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { code: normalized.legacyCode } } : {})
+        };
+      }
+
+      return result;
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.post("/routes/:id/export/gpx", async (request, reply) => {
+    try {
+      const { operationalUser } = await requireAdminOrMaster(request);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const id = String((request.params as any).id ?? "").trim();
+      if (!id) {
+        reply.status(400);
+        return { ok: false, error: "BAD_REQUEST", message: "id obrigatório" };
+      }
+
+      const result = await exportRouteGpx({
+        databaseUrl: env.databaseUrl,
+        routeId: id,
+        generatedByUserId: operationalUser.id
+      });
+
+      if (!result.ok) {
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { code: normalized.legacyCode } } : {})
+        };
+      }
+
+      return result;
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.post("/routes/:id/export/email-preview", async (request, reply) => {
+    try {
+      const { operationalUser } = await requireAdminOrMaster(request);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const id = String((request.params as any).id ?? "").trim();
+      if (!id) {
+        reply.status(400);
+        return { ok: false, error: "BAD_REQUEST", message: "id obrigatório" };
+      }
+
+      const result = await exportRouteEmailPreview({
+        databaseUrl: env.databaseUrl,
+        routeId: id,
+        generatedByUserId: operationalUser.id
       });
 
       if (!result.ok) {

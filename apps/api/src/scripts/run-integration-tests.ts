@@ -52,6 +52,7 @@ async function main() {
       "src/tests/inspector-profile.integration.test.ts",
       "src/tests/order-workflow.integration.test.ts",
       "src/tests/pool-import.integration.test.ts",
+      "src/tests/route-export.integration.test.ts",
       "src/tests/route-generation.integration.test.ts"
     ],
     baseEnv

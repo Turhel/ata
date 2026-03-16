@@ -417,6 +417,38 @@ export type RouteImportGpxResponse =
       details?: ApiErrorDetails;
     };
 
+export type RouteExportGpxResponse =
+  | {
+      ok: true;
+      fileName: string;
+      contentType: "application/gpx+xml";
+      content: string;
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_STATUS" | "BAD_REQUEST" | "INTERNAL_ERROR";
+      message: string;
+      details?: ApiErrorDetails;
+    };
+
+export type RouteExportEmailPreviewResponse =
+  | {
+      ok: true;
+      subject: string;
+      recipients: {
+        inspectorEmail: string | null;
+        assistantEmail: string | null;
+      };
+      textBody: string;
+      htmlBody: string;
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_STATUS" | "BAD_REQUEST" | "INTERNAL_ERROR";
+      message: string;
+      details?: ApiErrorDetails;
+    };
+
 export type InspectorAccountItem = {
   id: string;
   accountCode: string;
