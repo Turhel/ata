@@ -1,19 +1,25 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
-let pool: Pool | undefined;
-let db: ReturnType<typeof drizzle> | undefined;
+type DbBundle = {
+  pool: Pool;
+  db: ReturnType<typeof drizzle>;
+};
+
+const dbByUrl = new Map<string, DbBundle>();
 
 export function getDb(databaseUrl: string) {
-  if (!pool) {
-    pool = new Pool({ connectionString: databaseUrl });
+  const cached = dbByUrl.get(databaseUrl);
+  if (cached) {
+    return cached;
   }
 
-  if (!db) {
-    db = drizzle(pool);
-  }
+  const pool = new Pool({ connectionString: databaseUrl });
+  const db = drizzle(pool);
+  const bundle = { pool, db };
+  dbByUrl.set(databaseUrl, bundle);
 
-  return { pool, db };
+  return bundle;
 }
 
 export async function pingDb(databaseUrl: string) {
@@ -21,3 +27,15 @@ export async function pingDb(databaseUrl: string) {
   await pool.query("select 1 as ok");
 }
 
+export async function closeDb(databaseUrl: string) {
+  const existing = dbByUrl.get(databaseUrl);
+  if (!existing) return;
+
+  dbByUrl.delete(databaseUrl);
+  await existing.pool.end();
+}
+
+export async function closeAllDbs() {
+  const urls = [...dbByUrl.keys()];
+  await Promise.all(urls.map((url) => closeDb(url)));
+}
