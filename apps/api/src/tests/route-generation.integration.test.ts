@@ -235,10 +235,20 @@ integration("routes: cria rota otimizada usando a cidade de partida do inspetor"
     totalStops: number;
     originCity: string | null;
     optimizationMode: string;
+    alerts: {
+      reviewRequiredCount: number;
+      approximateCount: number;
+      notFoundCount: number;
+      pendingCount: number;
+    };
   };
   assert.equal(createRouteBody.originCity, "HINESVILLE");
   assert.equal(createRouteBody.optimizationMode, "heuristic_city_zip");
   assert.equal(createRouteBody.totalStops, originalAccountCandidates.length);
+  assert.equal(createRouteBody.alerts.reviewRequiredCount, 0);
+  assert.equal(createRouteBody.alerts.approximateCount, 0);
+  assert.equal(createRouteBody.alerts.notFoundCount, 0);
+  assert.equal(createRouteBody.alerts.pendingCount, originalAccountCandidates.length);
 
   const getRouteResponse = await app.inject({
     method: "GET",
@@ -253,7 +263,16 @@ integration("routes: cria rota otimizada usando a cidade de partida do inspetor"
   assert.equal(getRouteResponse.statusCode, 200);
   const routeBody = getRouteResponse.json() as {
     ok: true;
-    route: { originCity: string | null; optimizationMode: string };
+    route: {
+      originCity: string | null;
+      optimizationMode: string;
+      alerts: {
+        reviewRequiredCount: number;
+        approximateCount: number;
+        notFoundCount: number;
+        pendingCount: number;
+      };
+    };
     stops: Array<{
       addressLine1: string | null;
       city: string | null;
@@ -275,6 +294,10 @@ integration("routes: cria rota otimizada usando a cidade de partida do inspetor"
 
   assert.equal(routeBody.route.originCity, "HINESVILLE");
   assert.equal(routeBody.route.optimizationMode, "heuristic_city_zip");
+  assert.equal(routeBody.route.alerts.reviewRequiredCount, 0);
+  assert.equal(routeBody.route.alerts.approximateCount, 0);
+  assert.equal(routeBody.route.alerts.notFoundCount, 0);
+  assert.equal(routeBody.route.alerts.pendingCount, originalAccountCandidates.length);
   assert.ok(routeBody.stops.length > 0);
   assert.equal(normalizeCity(routeBody.stops[0]?.city), "HINESVILLE");
   assert.notEqual(normalizeCity(routeBody.stops[0]?.city), normalizeCity(originalFirstCity));

@@ -351,7 +351,18 @@ integration("routes geocode: geocodifica candidates do batch e sincroniza stops 
   });
 
   assert.equal(createRouteResponse.statusCode, 200);
-  const createRouteBody = createRouteResponse.json() as { ok: true; routeId: string };
+  const createRouteBody = createRouteResponse.json() as {
+    ok: true;
+    routeId: string;
+    alerts: {
+      reviewRequiredCount: number;
+      approximateCount: number;
+      notFoundCount: number;
+      pendingCount: number;
+    };
+  };
+  assert.equal(createRouteBody.alerts.reviewRequiredCount, 0);
+  assert.equal(createRouteBody.alerts.pendingCount, 3);
 
   const geocodeResponse = await app.inject({
     method: "POST",
@@ -464,6 +475,14 @@ integration("routes geocode: geocodifica candidates do batch e sincroniza stops 
   assert.equal(routeResponse.statusCode, 200);
   const routeBody = routeResponse.json() as {
     ok: true;
+    route: {
+      alerts: {
+        reviewRequiredCount: number;
+        approximateCount: number;
+        notFoundCount: number;
+        pendingCount: number;
+      };
+    };
     stops: Array<{
       addressLine1: string | null;
       geocodeStatus: string;
@@ -477,6 +496,10 @@ integration("routes geocode: geocodifica candidates do batch e sincroniza stops 
     }>;
   };
 
+  assert.equal(routeBody.route.alerts.reviewRequiredCount, 1);
+  assert.equal(routeBody.route.alerts.approximateCount, 1);
+  assert.equal(routeBody.route.alerts.notFoundCount, 1);
+  assert.equal(routeBody.route.alerts.pendingCount, 0);
   const stopByAddress = new Map(routeBody.stops.map((stop) => [stop.addressLine1, stop]));
   assert.equal(stopByAddress.get("100 Main St")?.geocodeStatus, "resolved");
   assert.equal(stopByAddress.get("100 Main St")?.geocodeQuality, "precise");
@@ -503,4 +526,39 @@ integration("routes geocode: geocodifica candidates do batch e sincroniza stops 
   assert.ok(storedStops.some((stop) => stop.geocodeStatus === "not_found"));
   assert.ok(storedStops.some((stop) => stop.geocodeQuality === "precise"));
   assert.ok(storedStops.some((stop) => stop.geocodeQuality === "approximate"));
+
+  const replacedRouteResponse = await app.inject({
+    method: "POST",
+    url: "/routes",
+    headers: {
+      cookie: admin.cookieHeader,
+      origin: appWebUrl,
+      host: "localhost:3001",
+      "content-type": "application/json"
+    },
+    payload: {
+      sourceBatchId: sourceBatchBody.batch.batchId,
+      routeDate: "2026-03-10",
+      inspectorAccountCode,
+      replaceExisting: true,
+      replaceReason: "rebuild after geocode"
+    }
+  });
+
+  assert.equal(replacedRouteResponse.statusCode, 200);
+  const replacedRouteBody = replacedRouteResponse.json() as {
+    ok: true;
+    optimizationMode: string;
+    alerts: {
+      reviewRequiredCount: number;
+      approximateCount: number;
+      notFoundCount: number;
+      pendingCount: number;
+    };
+  };
+  assert.equal(replacedRouteBody.optimizationMode, "heuristic_geo_city_zip");
+  assert.equal(replacedRouteBody.alerts.reviewRequiredCount, 1);
+  assert.equal(replacedRouteBody.alerts.approximateCount, 1);
+  assert.equal(replacedRouteBody.alerts.notFoundCount, 1);
+  assert.equal(replacedRouteBody.alerts.pendingCount, 0);
 });

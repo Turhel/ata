@@ -14,6 +14,12 @@ export type GetRouteResult =
         assistantUserId: string | null;
         originCity: string | null;
         optimizationMode: string;
+        alerts: {
+          reviewRequiredCount: number;
+          approximateCount: number;
+          notFoundCount: number;
+          pendingCount: number;
+        };
         status: (typeof routes.status.enumValues)[number];
         version: number;
         publishedAt: Date | null;
@@ -142,5 +148,21 @@ export async function getRouteById(params: {
     .where(eq(routeEvents.routeId, params.routeId))
     .orderBy(asc(routeEvents.createdAt));
 
-  return { ok: true, route, stops, events };
+  const alerts = stops.reduce(
+    (acc, stop) => {
+      if (stop.geocodeReviewRequired) acc.reviewRequiredCount += 1;
+      if (stop.geocodeQuality === "approximate") acc.approximateCount += 1;
+      if (stop.geocodeStatus === "not_found") acc.notFoundCount += 1;
+      if (stop.geocodeStatus === "pending") acc.pendingCount += 1;
+      return acc;
+    },
+    {
+      reviewRequiredCount: 0,
+      approximateCount: 0,
+      notFoundCount: 0,
+      pendingCount: 0
+    }
+  );
+
+  return { ok: true, route: { ...route, alerts }, stops, events };
 }

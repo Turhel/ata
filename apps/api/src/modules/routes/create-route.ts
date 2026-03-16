@@ -25,7 +25,13 @@ export type CreateRouteResult =
       version: number;
       totalStops: number;
       originCity: string | null;
-      optimizationMode: "heuristic_city_zip";
+      optimizationMode: "heuristic_city_zip" | "heuristic_geo_city_zip";
+      alerts: {
+        reviewRequiredCount: number;
+        approximateCount: number;
+        notFoundCount: number;
+        pendingCount: number;
+      };
     }
   | { ok: false; error: "BAD_REQUEST" | "NOT_FOUND" | "FORBIDDEN" | "CONFLICT"; message: string };
 
@@ -210,6 +216,22 @@ export async function createRoute(params: {
     originCity
   });
 
+  const alerts = nonCancelledCandidates.reduce(
+    (acc, candidate) => {
+      if (candidate.geocodeReviewRequired) acc.reviewRequiredCount += 1;
+      if (candidate.geocodeQuality === "approximate") acc.approximateCount += 1;
+      if (candidate.geocodeStatus === "not_found") acc.notFoundCount += 1;
+      if (candidate.geocodeStatus === "pending") acc.pendingCount += 1;
+      return acc;
+    },
+    {
+      reviewRequiredCount: 0,
+      approximateCount: 0,
+      notFoundCount: 0,
+      pendingCount: 0
+    }
+  );
+
   await db.transaction(async (tx) => {
     if (existingActive[0]) {
       await tx
@@ -267,7 +289,8 @@ export async function createRoute(params: {
       metadata: {
         ...(params.replaceExisting ? { replaced: true } : {}),
         originCity: optimized.originCity,
-        optimizationMode: optimized.optimizationMode
+        optimizationMode: optimized.optimizationMode,
+        alerts
       }
     });
 
@@ -311,6 +334,7 @@ export async function createRoute(params: {
     version: nextVersion,
     totalStops: optimized.ordered.length,
     originCity: optimized.originCity,
-    optimizationMode: optimized.optimizationMode
+    optimizationMode: optimized.optimizationMode,
+    alerts
   };
 }
