@@ -33,10 +33,17 @@ export type GetRouteResult =
         city: string | null;
         state: string | null;
         zipCode: string | null;
+        normalizedAddressLine1: string | null;
+        normalizedCity: string | null;
+        normalizedState: string | null;
+        normalizedZipCode: string | null;
         latitude: string | null;
         longitude: string | null;
         geocodeStatus: string;
+        geocodeQuality: string | null;
         geocodeSource: string | null;
+        geocodeReviewRequired: boolean;
+        geocodeReviewReason: string | null;
         geocodedAt: Date | null;
         dueDate: string | null;
         createdAt: Date;
@@ -100,10 +107,17 @@ export async function getRouteById(params: {
       city: routeStops.city,
       state: routeStops.state,
       zipCode: routeStops.zipCode,
+      normalizedAddressLine1: routeStops.normalizedAddressLine1,
+      normalizedCity: routeStops.normalizedCity,
+      normalizedState: routeStops.normalizedState,
+      normalizedZipCode: routeStops.normalizedZipCode,
       latitude: routeStops.latitude,
       longitude: routeStops.longitude,
       geocodeStatus: routeStops.geocodeStatus,
+      geocodeQuality: routeStops.geocodeQuality,
       geocodeSource: routeStops.geocodeSource,
+      geocodeReviewRequired: routeStops.geocodeReviewRequired,
+      geocodeReviewReason: routeStops.geocodeReviewReason,
       geocodedAt: routeStops.geocodedAt,
       dueDate: routeStops.dueDate,
       createdAt: routeStops.createdAt,

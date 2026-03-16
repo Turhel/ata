@@ -344,6 +344,9 @@ export type RouteSourceBatchGeocodeResponse =
       totalCandidates: number;
       processedCandidates: number;
       resolvedCandidates: number;
+      preciseCandidates: number;
+      approximateCandidates: number;
+      reviewRequiredCandidates: number;
       notFoundCandidates: number;
       failedCandidates: number;
       skippedCandidates: number;
@@ -351,6 +354,41 @@ export type RouteSourceBatchGeocodeResponse =
   | {
       ok: false;
       error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "BAD_REQUEST" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type RouteSourceBatchCandidateItem = {
+  id: string;
+  lineNumber: number;
+  externalOrderCode: string;
+  sourceStatus: SourceOrderStatus;
+  sourceInspectorAccountCode: string | null;
+  residentName: string | null;
+  addressLine1: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
+  normalizedAddressLine1: string | null;
+  normalizedCity: string | null;
+  normalizedState: string | null;
+  normalizedZipCode: string | null;
+  latitude: string | null;
+  longitude: string | null;
+  geocodeStatus: string;
+  geocodeQuality: string | null;
+  geocodeSource: string | null;
+  geocodeReviewRequired: boolean;
+  geocodeReviewReason: string | null;
+  geocodedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RouteSourceBatchCandidatesResponse =
+  | { ok: true; candidates: RouteSourceBatchCandidateItem[]; meta: ListMeta }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "INTERNAL_ERROR";
       message: string;
     };
 

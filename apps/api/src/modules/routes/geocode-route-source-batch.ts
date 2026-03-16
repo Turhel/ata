@@ -1,6 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { routeCandidates, routeSourceBatches, routeStops, routes } from "../../db/schema.js";
 import { getDb } from "../../lib/db.js";
+import { buildNormalizedAddress, classifyGeocodeResult } from "./address-normalization.js";
 
 type GeocodeStatus = "pending" | "resolved" | "not_found" | "failed" | "skipped";
 
@@ -11,6 +12,9 @@ export type GeocodeRouteSourceBatchResult =
       totalCandidates: number;
       processedCandidates: number;
       resolvedCandidates: number;
+      preciseCandidates: number;
+      approximateCandidates: number;
+      reviewRequiredCandidates: number;
       notFoundCandidates: number;
       failedCandidates: number;
       skippedCandidates: number;
@@ -27,6 +31,10 @@ function toNullableNumberString(value: unknown) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return /^-?\d+(\.\d+)?$/.test(trimmed) ? trimmed : null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
 }
 
 function buildAddressQuery(candidate: {
@@ -106,11 +114,29 @@ async function geocodeWithNominatim(params: {
     };
   }
 
+  const address = asRecord(first.address);
+
   return {
     status: "resolved" as const,
     latitude: toNullableNumberString(first.lat),
     longitude: toNullableNumberString(first.lon),
-    source: "nominatim"
+    source: "nominatim",
+    resolvedAddress: {
+      street: address
+        ? [address.house_number, address.road]
+            .filter((part) => typeof part === "string" && part.trim().length > 0)
+            .join(" ")
+        : null,
+      city: address
+        ? toNullableText(
+            [address.city, address.town, address.village].find(
+              (part) => typeof part === "string" && part.trim().length > 0
+            ) ?? null
+          )
+        : null,
+      state: address ? toNullableText(address.state) : null,
+      zipCode: address ? toNullableText(address.postcode) : null
+    }
   };
 }
 
@@ -139,6 +165,10 @@ export async function geocodeRouteSourceBatch(params: {
       city: routeCandidates.city,
       state: routeCandidates.state,
       zipCode: routeCandidates.zipCode,
+      normalizedAddressLine1: routeCandidates.normalizedAddressLine1,
+      normalizedCity: routeCandidates.normalizedCity,
+      normalizedState: routeCandidates.normalizedState,
+      normalizedZipCode: routeCandidates.normalizedZipCode,
       geocodeStatus: routeCandidates.geocodeStatus
     })
     .from(routeCandidates)
@@ -149,6 +179,9 @@ export async function geocodeRouteSourceBatch(params: {
     : candidates.filter((candidate) => candidate.geocodeStatus === "pending" || candidate.geocodeStatus === "failed");
 
   let resolvedCandidates = 0;
+  let preciseCandidates = 0;
+  let approximateCandidates = 0;
+  let reviewRequiredCandidates = 0;
   let notFoundCandidates = 0;
   let failedCandidates = 0;
   let skippedCandidates = 0;
@@ -159,14 +192,55 @@ export async function geocodeRouteSourceBatch(params: {
       candidate
     });
 
+    const normalizedCandidate =
+      candidate.normalizedAddressLine1 || candidate.normalizedCity || candidate.normalizedState || candidate.normalizedZipCode
+        ? {
+            normalizedAddressLine1: candidate.normalizedAddressLine1,
+            normalizedCity: candidate.normalizedCity,
+            normalizedState: candidate.normalizedState,
+            normalizedZipCode: candidate.normalizedZipCode
+          }
+        : buildNormalizedAddress(candidate);
+
+    const quality =
+      geocoded.status === "resolved" && geocoded.resolvedAddress
+        ? classifyGeocodeResult({
+            candidate: normalizedCandidate,
+            resolved: geocoded.resolvedAddress
+          })
+        : geocoded.status === "not_found"
+          ? {
+              quality: "not_found" as const,
+              reviewRequired: true,
+              reviewReason: "Nenhum resultado retornado pelo geocoder"
+            }
+          : geocoded.status === "skipped"
+            ? {
+                quality: "needs_review" as const,
+                reviewRequired: true,
+                reviewReason: "Endereço insuficiente para geocodificação"
+              }
+            : {
+                quality: null,
+                reviewRequired: true,
+                reviewReason: "Falha temporária no provedor de geocode"
+              };
+
     await db.transaction(async (tx) => {
       await tx
         .update(routeCandidates)
         .set({
+          normalizedAddressLine1: normalizedCandidate.normalizedAddressLine1,
+          normalizedCity: normalizedCandidate.normalizedCity,
+          normalizedState: normalizedCandidate.normalizedState,
+          normalizedZipCode: normalizedCandidate.normalizedZipCode,
           latitude: geocoded.latitude,
           longitude: geocoded.longitude,
           geocodeStatus: geocoded.status satisfies GeocodeStatus,
+          geocodeQuality: quality.quality,
           geocodeSource: geocoded.source,
+          geocodeReviewRequired: quality.reviewRequired,
+          geocodeReviewReason: quality.reviewReason,
           geocodedAt: sql`now()`,
           updatedAt: sql`now()`
         })
@@ -182,10 +256,17 @@ export async function geocodeRouteSourceBatch(params: {
         await tx
           .update(routeStops)
           .set({
+            normalizedAddressLine1: normalizedCandidate.normalizedAddressLine1,
+            normalizedCity: normalizedCandidate.normalizedCity,
+            normalizedState: normalizedCandidate.normalizedState,
+            normalizedZipCode: normalizedCandidate.normalizedZipCode,
             latitude: geocoded.latitude,
             longitude: geocoded.longitude,
             geocodeStatus: geocoded.status satisfies GeocodeStatus,
+            geocodeQuality: quality.quality,
             geocodeSource: geocoded.source,
+            geocodeReviewRequired: quality.reviewRequired,
+            geocodeReviewReason: quality.reviewReason,
             geocodedAt: sql`now()`,
             updatedAt: sql`now()`
           })
@@ -193,10 +274,21 @@ export async function geocodeRouteSourceBatch(params: {
       }
     });
 
-    if (geocoded.status === "resolved") resolvedCandidates += 1;
-    else if (geocoded.status === "not_found") notFoundCandidates += 1;
-    else if (geocoded.status === "failed") failedCandidates += 1;
-    else skippedCandidates += 1;
+    if (geocoded.status === "resolved") {
+      resolvedCandidates += 1;
+      if (quality.quality === "precise") preciseCandidates += 1;
+      else if (quality.quality === "approximate") approximateCandidates += 1;
+      if (quality.reviewRequired) reviewRequiredCandidates += 1;
+    } else if (geocoded.status === "not_found") {
+      notFoundCandidates += 1;
+      reviewRequiredCandidates += 1;
+    } else if (geocoded.status === "failed") {
+      failedCandidates += 1;
+      reviewRequiredCandidates += 1;
+    } else {
+      skippedCandidates += 1;
+      reviewRequiredCandidates += 1;
+    }
   }
 
   return {
@@ -205,6 +297,9 @@ export async function geocodeRouteSourceBatch(params: {
     totalCandidates: candidates.length,
     processedCandidates: targetCandidates.length,
     resolvedCandidates,
+    preciseCandidates,
+    approximateCandidates,
+    reviewRequiredCandidates,
     notFoundCandidates,
     failedCandidates,
     skippedCandidates

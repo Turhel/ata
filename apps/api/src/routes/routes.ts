@@ -16,6 +16,7 @@ import { createRouteSourceBatchFromXlsx } from "../modules/routes/create-route-s
 import { createRoute } from "../modules/routes/create-route.js";
 import { geocodeRouteSourceBatch } from "../modules/routes/geocode-route-source-batch.js";
 import { getRouteById } from "../modules/routes/get-route-by-id.js";
+import { listRouteSourceBatchCandidates } from "../modules/routes/list-route-source-batch-candidates.js";
 import { listRoutes } from "../modules/routes/list-routes.js";
 import { publishRoute } from "../modules/routes/publish-route.js";
 
@@ -182,6 +183,65 @@ export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
       }
 
       return result;
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.get("/routes/source-batches/:id/candidates", async (request, reply) => {
+    try {
+      await requireAdminOrMaster(request);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const sourceBatchId = String((request.params as any).id ?? "").trim();
+      if (!sourceBatchId) {
+        reply.status(400);
+        return { ok: false, error: "BAD_REQUEST", message: "sourceBatchId obrigatório" };
+      }
+
+      const query = (request.query as Record<string, unknown> | undefined) ?? {};
+      const review = typeof query.review === "string" ? query.review.trim() : "";
+      if (review && review !== "required") {
+        reply.status(400);
+        return {
+          ok: false,
+          error: "BAD_REQUEST",
+          message: "Parâmetro review inválido para /routes/source-batches/:id/candidates"
+        };
+      }
+
+      const pagination = parsePagination(query, { pageSize: 50, maxPageSize: 200 });
+      const result = await listRouteSourceBatchCandidates({
+        databaseUrl: env.databaseUrl,
+        sourceBatchId,
+        review: review === "required" ? "required" : undefined,
+        ...pagination
+      });
+
+      return {
+        ok: true,
+        candidates: result.candidates,
+        meta: buildListMeta({
+          page: pagination.page,
+          pageSize: pagination.pageSize,
+          total: result.total
+        })
+      };
     } catch (error) {
       if (error instanceof PermissionError) {
         reply.status(error.statusCode);

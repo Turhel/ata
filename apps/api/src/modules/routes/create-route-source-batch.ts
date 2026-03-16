@@ -2,6 +2,7 @@ import { inArray, sql } from "drizzle-orm";
 import { createHash, randomUUID } from "node:crypto";
 import { orders, routeCandidates, routeSourceBatches } from "../../db/schema.js";
 import { getDb } from "../../lib/db.js";
+import { buildNormalizedAddress } from "./address-normalization.js";
 import { parseRouteSourceXlsxBuffer } from "./parse-route-source-xlsx.js";
 
 export type CreateRouteSourceBatchResult = {
@@ -78,6 +79,12 @@ export async function createRouteSourceBatchFromXlsx(params: {
 
     await tx.insert(routeCandidates).values(
       candidates.map((c) => ({
+        ...buildNormalizedAddress({
+          addressLine1: c.addressLine1,
+          city: c.city,
+          state: c.state,
+          zipCode: c.zipCode
+        }),
         id: randomUUID(),
         sourceBatchId: batchId,
         lineNumber: c.lineNumber,
@@ -93,6 +100,7 @@ export async function createRouteSourceBatchFromXlsx(params: {
         state: c.state,
         zipCode: c.zipCode,
         geocodeStatus: "pending",
+        geocodeReviewRequired: false,
         dueDate: c.dueDate,
         startDate: c.startDate,
         hasWindow: c.hasWindow,

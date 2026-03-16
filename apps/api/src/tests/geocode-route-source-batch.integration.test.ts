@@ -78,7 +78,40 @@ async function startFakeNominatim() {
     response.setHeader("content-type", "application/json");
 
     if (street === "100 Main St" && city === "Hinesville") {
-      response.end(JSON.stringify([{ lat: "31.8468781", lon: "-81.5959454" }]));
+      response.end(
+        JSON.stringify([
+          {
+            lat: "31.8468781",
+            lon: "-81.5959454",
+            address: {
+              house_number: "100",
+              road: "Main Street",
+              city: "Hinesville",
+              state: "Georgia",
+              postcode: "31313"
+            }
+          }
+        ])
+      );
+      return;
+    }
+
+    if (street === "300 Side St." && city === "Approxville") {
+      response.end(
+        JSON.stringify([
+          {
+            lat: "32.0000000",
+            lon: "-81.0000000",
+            address: {
+              house_number: "300",
+              road: "Side Street",
+              city: "Approxville",
+              state: "Georgia",
+              postcode: "99999"
+            }
+          }
+        ])
+      );
       return;
     }
 
@@ -175,12 +208,13 @@ function buildMultipartFilePayload(params: {
 }
 
 function buildRouteWorkbookBuffer() {
+  const inspectorAccountCode = "ATAGEO04";
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.json_to_sheet([
     {
       STATUS: "Assigned",
       WORDER: "ROUTE-GEOCODE-001",
-      INSPECTOR: "ATAVEND04",
+      INSPECTOR: inspectorAccountCode,
       CLIENT: "CLIENT_X",
       NAME: "Resident One",
       ADDRESS1: "100 Main St",
@@ -198,8 +232,27 @@ function buildRouteWorkbookBuffer() {
     },
     {
       STATUS: "Assigned",
+      WORDER: "ROUTE-GEOCODE-003",
+      INSPECTOR: inspectorAccountCode,
+      CLIENT: "CLIENT_X",
+      NAME: "Resident Three",
+      ADDRESS1: "300 Side St.",
+      ADDRESS2: null,
+      CITY: "Approxville",
+      STATE: "GA",
+      ZIP: "31399-1234",
+      OTYPE: "E3RNN",
+      DUEDATE: "03/10/2026",
+      "START DATE": "03/10/2026",
+      WINDOW: "N",
+      RUSH: "N",
+      FOLLOWUP: "N",
+      VACANT: "N"
+    },
+    {
+      STATUS: "Assigned",
       WORDER: "ROUTE-GEOCODE-002",
-      INSPECTOR: "ATAVEND04",
+      INSPECTOR: inspectorAccountCode,
       CLIENT: "CLIENT_X",
       NAME: "Resident Two",
       ADDRESS1: "200 Unknown Rd",
@@ -218,7 +271,10 @@ function buildRouteWorkbookBuffer() {
   ]);
 
   XLSX.utils.book_append_sheet(workbook, sheet, "Routes");
-  return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  return {
+    inspectorAccountCode,
+    buffer: XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer
+  };
 }
 
 integration("routes geocode: geocodifica candidates do batch e sincroniza stops existentes", async (t) => {
@@ -242,15 +298,16 @@ integration("routes geocode: geocodifica candidates do batch e sincroniza stops 
     status: "active"
   });
 
+  const { inspectorAccountCode, buffer } = buildRouteWorkbookBuffer();
+
   await db.insert(inspectorAccounts).values({
     id: randomUUID(),
-    accountCode: "ATAVEND04",
+    accountCode: inspectorAccountCode,
     accountType: "field",
     currentInspectorId: inspectorId,
     isActive: true
   });
 
-  const buffer = buildRouteWorkbookBuffer();
   const multipart = buildMultipartFilePayload({
     fieldName: "file",
     fileName: "route-geocode.xlsx",
@@ -289,7 +346,7 @@ integration("routes geocode: geocodifica candidates do batch e sincroniza stops 
     payload: {
       sourceBatchId: sourceBatchBody.batch.batchId,
       routeDate: "2026-03-10",
-      inspectorAccountCode: "ATAVEND04"
+      inspectorAccountCode
     }
   });
 
@@ -314,6 +371,9 @@ integration("routes geocode: geocodifica candidates do batch e sincroniza stops 
     totalCandidates: number;
     processedCandidates: number;
     resolvedCandidates: number;
+    preciseCandidates: number;
+    approximateCandidates: number;
+    reviewRequiredCandidates: number;
     notFoundCandidates: number;
     failedCandidates: number;
     skippedCandidates: number;
@@ -321,9 +381,12 @@ integration("routes geocode: geocodifica candidates do batch e sincroniza stops 
   assert.deepEqual(geocodeBody, {
     ok: true,
     batchId: sourceBatchBody.batch.batchId,
-    totalCandidates: 2,
-    processedCandidates: 2,
-    resolvedCandidates: 1,
+    totalCandidates: 3,
+    processedCandidates: 3,
+    resolvedCandidates: 2,
+    preciseCandidates: 1,
+    approximateCandidates: 1,
+    reviewRequiredCandidates: 1,
     notFoundCandidates: 1,
     failedCandidates: 0,
     skippedCandidates: 0
@@ -336,7 +399,14 @@ integration("routes geocode: geocodifica candidates do batch e sincroniza stops 
       latitude: routeCandidates.latitude,
       longitude: routeCandidates.longitude,
       geocodeStatus: routeCandidates.geocodeStatus,
-      geocodeSource: routeCandidates.geocodeSource
+      geocodeQuality: routeCandidates.geocodeQuality,
+      geocodeSource: routeCandidates.geocodeSource,
+      geocodeReviewRequired: routeCandidates.geocodeReviewRequired,
+      geocodeReviewReason: routeCandidates.geocodeReviewReason,
+      normalizedAddressLine1: routeCandidates.normalizedAddressLine1,
+      normalizedCity: routeCandidates.normalizedCity,
+      normalizedState: routeCandidates.normalizedState,
+      normalizedZipCode: routeCandidates.normalizedZipCode
     })
     .from(routeCandidates)
     .where(eq(routeCandidates.sourceBatchId, sourceBatchBody.batch.batchId));
@@ -345,8 +415,41 @@ integration("routes geocode: geocodifica candidates do batch e sincroniza stops 
   assert.equal(candidateByCode.get("ROUTE-GEOCODE-001")?.geocodeStatus, "resolved");
   assert.equal(candidateByCode.get("ROUTE-GEOCODE-001")?.latitude, "31.8468781");
   assert.equal(candidateByCode.get("ROUTE-GEOCODE-001")?.longitude, "-81.5959454");
+  assert.equal(candidateByCode.get("ROUTE-GEOCODE-001")?.geocodeQuality, "precise");
   assert.equal(candidateByCode.get("ROUTE-GEOCODE-001")?.geocodeSource, "nominatim");
+  assert.equal(candidateByCode.get("ROUTE-GEOCODE-001")?.geocodeReviewRequired, false);
+  assert.equal(candidateByCode.get("ROUTE-GEOCODE-001")?.normalizedAddressLine1, "100 MAIN ST");
+  assert.equal(candidateByCode.get("ROUTE-GEOCODE-001")?.normalizedCity, "HINESVILLE");
+  assert.equal(candidateByCode.get("ROUTE-GEOCODE-001")?.normalizedState, "GA");
+  assert.equal(candidateByCode.get("ROUTE-GEOCODE-001")?.normalizedZipCode, "31313");
+  assert.equal(candidateByCode.get("ROUTE-GEOCODE-003")?.geocodeStatus, "resolved");
+  assert.equal(candidateByCode.get("ROUTE-GEOCODE-003")?.geocodeQuality, "approximate");
+  assert.equal(candidateByCode.get("ROUTE-GEOCODE-003")?.geocodeReviewRequired, false);
   assert.equal(candidateByCode.get("ROUTE-GEOCODE-002")?.geocodeStatus, "not_found");
+  assert.equal(candidateByCode.get("ROUTE-GEOCODE-002")?.geocodeQuality, "not_found");
+  assert.equal(candidateByCode.get("ROUTE-GEOCODE-002")?.geocodeReviewRequired, true);
+  assert.equal(candidateByCode.get("ROUTE-GEOCODE-002")?.geocodeReviewReason, "Nenhum resultado retornado pelo geocoder");
+
+  const reviewCandidatesResponse = await app.inject({
+    method: "GET",
+    url: `/routes/source-batches/${sourceBatchBody.batch.batchId}/candidates?review=required`,
+    headers: {
+      cookie: admin.cookieHeader,
+      origin: appWebUrl,
+      host: "localhost:3001"
+    }
+  });
+
+  assert.equal(reviewCandidatesResponse.statusCode, 200);
+  const reviewCandidatesBody = reviewCandidatesResponse.json() as {
+    ok: true;
+    candidates: Array<{ externalOrderCode: string; geocodeReviewRequired: boolean; geocodeQuality: string | null }>;
+    meta: { total: number };
+  };
+  assert.equal(reviewCandidatesBody.meta.total, 1);
+  assert.deepEqual(reviewCandidatesBody.candidates.map((candidate) => candidate.externalOrderCode), ["ROUTE-GEOCODE-002"]);
+  assert.equal(reviewCandidatesBody.candidates[0]?.geocodeReviewRequired, true);
+  assert.equal(reviewCandidatesBody.candidates[0]?.geocodeQuality, "not_found");
 
   const routeResponse = await app.inject({
     method: "GET",
@@ -364,7 +467,11 @@ integration("routes geocode: geocodifica candidates do batch e sincroniza stops 
     stops: Array<{
       addressLine1: string | null;
       geocodeStatus: string;
+      geocodeQuality: string | null;
       geocodeSource: string | null;
+      geocodeReviewRequired: boolean;
+      geocodeReviewReason: string | null;
+      normalizedAddressLine1: string | null;
       latitude: string | null;
       longitude: string | null;
     }>;
@@ -372,16 +479,28 @@ integration("routes geocode: geocodifica candidates do batch e sincroniza stops 
 
   const stopByAddress = new Map(routeBody.stops.map((stop) => [stop.addressLine1, stop]));
   assert.equal(stopByAddress.get("100 Main St")?.geocodeStatus, "resolved");
+  assert.equal(stopByAddress.get("100 Main St")?.geocodeQuality, "precise");
+  assert.equal(stopByAddress.get("100 Main St")?.geocodeReviewRequired, false);
+  assert.equal(stopByAddress.get("100 Main St")?.normalizedAddressLine1, "100 MAIN ST");
   assert.equal(stopByAddress.get("100 Main St")?.latitude, "31.8468781");
   assert.equal(stopByAddress.get("100 Main St")?.longitude, "-81.5959454");
+  assert.equal(stopByAddress.get("300 Side St.")?.geocodeStatus, "resolved");
+  assert.equal(stopByAddress.get("300 Side St.")?.geocodeQuality, "approximate");
+  assert.equal(stopByAddress.get("300 Side St.")?.geocodeReviewRequired, false);
   assert.equal(stopByAddress.get("200 Unknown Rd")?.geocodeStatus, "not_found");
+  assert.equal(stopByAddress.get("200 Unknown Rd")?.geocodeQuality, "not_found");
+  assert.equal(stopByAddress.get("200 Unknown Rd")?.geocodeReviewRequired, true);
+  assert.equal(stopByAddress.get("200 Unknown Rd")?.geocodeReviewReason, "Nenhum resultado retornado pelo geocoder");
 
   const storedStops = await db
     .select({
-      geocodeStatus: routeStops.geocodeStatus
+      geocodeStatus: routeStops.geocodeStatus,
+      geocodeQuality: routeStops.geocodeQuality
     })
     .from(routeStops);
 
   assert.ok(storedStops.some((stop) => stop.geocodeStatus === "resolved"));
   assert.ok(storedStops.some((stop) => stop.geocodeStatus === "not_found"));
+  assert.ok(storedStops.some((stop) => stop.geocodeQuality === "precise"));
+  assert.ok(storedStops.some((stop) => stop.geocodeQuality === "approximate"));
 });

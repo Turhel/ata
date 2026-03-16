@@ -8,6 +8,7 @@ import { buildApp } from "../app.js";
 import { inspectorAccounts, inspectors, userRoles, users } from "../db/schema.js";
 import type { ApiEnv } from "../env.js";
 import { getDb } from "../lib/db.js";
+import { buildNormalizedAddress } from "../modules/routes/address-normalization.js";
 import { parseRouteSourceXlsxBuffer } from "../modules/routes/parse-route-source-xlsx.js";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -254,9 +255,19 @@ integration("routes: cria rota otimizada usando a cidade de partida do inspetor"
     ok: true;
     route: { originCity: string | null; optimizationMode: string };
     stops: Array<{
+      addressLine1: string | null;
       city: string | null;
+      state: string | null;
+      zipCode: string | null;
+      normalizedAddressLine1: string | null;
+      normalizedCity: string | null;
+      normalizedState: string | null;
+      normalizedZipCode: string | null;
       geocodeStatus: string;
+      geocodeQuality: string | null;
       geocodeSource: string | null;
+      geocodeReviewRequired: boolean;
+      geocodeReviewReason: string | null;
       latitude: string | null;
       longitude: string | null;
     }>;
@@ -268,8 +279,21 @@ integration("routes: cria rota otimizada usando a cidade de partida do inspetor"
   assert.equal(normalizeCity(routeBody.stops[0]?.city), "HINESVILLE");
   assert.notEqual(normalizeCity(routeBody.stops[0]?.city), normalizeCity(originalFirstCity));
   assert.ok(routeBody.stops.slice(0, 3).every((stop) => normalizeCity(stop.city) === "HINESVILLE"));
+  const expectedNormalizedFirstStop = buildNormalizedAddress({
+    addressLine1: routeBody.stops[0]?.addressLine1 ?? null,
+    city: routeBody.stops[0]?.city ?? null,
+    state: routeBody.stops[0]?.state ?? null,
+    zipCode: routeBody.stops[0]?.zipCode ?? null
+  });
+  assert.equal(routeBody.stops[0]?.normalizedAddressLine1, expectedNormalizedFirstStop.normalizedAddressLine1);
+  assert.equal(routeBody.stops[0]?.normalizedCity, expectedNormalizedFirstStop.normalizedCity);
+  assert.equal(routeBody.stops[0]?.normalizedState, expectedNormalizedFirstStop.normalizedState);
+  assert.equal(routeBody.stops[0]?.normalizedZipCode, expectedNormalizedFirstStop.normalizedZipCode);
   assert.equal(routeBody.stops[0]?.geocodeStatus, "pending");
+  assert.equal(routeBody.stops[0]?.geocodeQuality, null);
   assert.equal(routeBody.stops[0]?.geocodeSource, null);
+  assert.equal(routeBody.stops[0]?.geocodeReviewRequired, false);
+  assert.equal(routeBody.stops[0]?.geocodeReviewReason, null);
   assert.equal(routeBody.stops[0]?.latitude, null);
   assert.equal(routeBody.stops[0]?.longitude, null);
 
