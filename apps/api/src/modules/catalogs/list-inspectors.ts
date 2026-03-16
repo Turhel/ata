@@ -11,6 +11,7 @@ export async function listInspectors(databaseUrl: string) {
       fullName: inspectors.fullName,
       email: inspectors.email,
       phone: inspectors.phone,
+      departureCity: inspectors.departureCity,
       status: inspectors.status,
       notes: inspectors.notes,
       createdAt: inspectors.createdAt,
@@ -19,4 +20,3 @@ export async function listInspectors(databaseUrl: string) {
     .from(inspectors)
     .orderBy(asc(inspectors.fullName));
 }
-

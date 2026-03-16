@@ -23,6 +23,7 @@ export type OperationalUserProfile = {
   fullName: string;
   status: OperationalUserStatus;
   authUserId: string | null;
+  inspectorId: string | null;
 };
 
 export type MeResponse =
@@ -44,6 +45,7 @@ export type UsersListItem = {
   fullName: string;
   status: OperationalUserStatus;
   authUserId: string | null;
+  inspectorId: string | null;
   roleCode: RoleCode | null;
 };
 
@@ -96,6 +98,18 @@ export type UserRoleMutationResponse =
         assignedByUserId: string;
       };
     }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "BAD_REQUEST" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type UserInspectorLinkRequest = {
+  inspectorId: string | null;
+};
+
+export type UserInspectorLinkResponse =
+  | { ok: true; user: UsersListItem }
   | {
       ok: false;
       error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "BAD_REQUEST" | "INTERNAL_ERROR";
@@ -238,6 +252,7 @@ export type InspectorItem = {
   fullName: string;
   email: string | null;
   phone: string | null;
+  departureCity: string | null;
   status: string;
   notes: string | null;
   createdAt: string;
@@ -256,6 +271,7 @@ export type InspectorMutationRequest = {
   fullName: string;
   email?: string | null;
   phone?: string | null;
+  departureCity?: string | null;
   status?: string;
   notes?: string | null;
 };
@@ -267,6 +283,33 @@ export type InspectorMutationResponse =
       error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "NOT_FOUND" | "INTERNAL_ERROR";
       message: string;
     };
+
+export type InspectorSelfProfile = {
+  userId: string;
+  inspectorId: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  departureCity: string | null;
+  status: string;
+  notes: string | null;
+};
+
+export type InspectorSelfProfileResponse =
+  | { ok: true; profile: InspectorSelfProfile }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "BAD_REQUEST" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type InspectorSelfProfilePatchRequest = {
+  email?: string | null;
+  phone?: string | null;
+  departureCity?: string | null;
+};
+
+export type InspectorSelfProfilePatchResponse = InspectorSelfProfileResponse;
 
 export type InspectorAccountItem = {
   id: string;

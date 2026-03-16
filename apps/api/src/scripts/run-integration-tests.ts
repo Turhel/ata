@@ -47,8 +47,10 @@ async function main() {
       "--test",
       "src/tests/access.integration.test.ts",
       "src/tests/auth-me.integration.test.ts",
+      "src/tests/inspector-profile.integration.test.ts",
       "src/tests/order-workflow.integration.test.ts",
-      "src/tests/pool-import.integration.test.ts"
+      "src/tests/pool-import.integration.test.ts",
+      "src/tests/route-generation.integration.test.ts"
     ],
     baseEnv
   );

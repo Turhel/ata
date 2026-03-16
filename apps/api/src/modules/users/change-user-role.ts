@@ -14,6 +14,7 @@ export type ChangeUserRoleResult =
         fullName: string;
         status: "pending" | "active" | "blocked" | "inactive";
         authUserId: string | null;
+        inspectorId: string | null;
         roleCode: RoleCode | null;
       };
       role: {
@@ -61,7 +62,8 @@ export async function changeUserRole(params: {
         email: users.email,
         fullName: users.fullName,
         status: users.status,
-        authUserId: users.authUserId
+        authUserId: users.authUserId,
+        inspectorId: users.inspectorId
       })
       .from(users)
       .where(eq(users.id, params.targetUserId))

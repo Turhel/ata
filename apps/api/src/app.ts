@@ -15,6 +15,7 @@ import { registerPaymentBatchRoutes } from "./routes/payment-batches.js";
 import { registerDashboardRoutes } from "./routes/dashboard.js";
 import { registerTeamAssignmentsRoutes } from "./routes/team-assignments.js";
 import { registerRoutesRoutes } from "./routes/routes.js";
+import { registerInspectorProfileRoutes } from "./routes/inspector-profile.js";
 
 export async function buildApp(env: ApiEnv) {
   const app = fastify().withTypeProvider<ZodTypeProvider>();
@@ -52,6 +53,7 @@ export async function buildApp(env: ApiEnv) {
   registerPaymentBatchRoutes(app, env);
   registerDashboardRoutes(app, env);
   registerRoutesRoutes(app, env);
+  registerInspectorProfileRoutes(app, env);
 
   return app;
 }

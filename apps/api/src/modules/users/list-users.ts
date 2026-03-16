@@ -31,6 +31,7 @@ export async function listOperationalUsers(params: {
       fullName: users.fullName,
       status: users.status,
       authUserId: users.authUserId,
+      inspectorId: users.inspectorId,
       roleCode: userRoles.roleCode
     })
     .from(users)

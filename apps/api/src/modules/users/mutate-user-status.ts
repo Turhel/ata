@@ -9,6 +9,7 @@ type UserWithRole = {
   fullName: string;
   status: UserStatus;
   authUserId: string | null;
+  inspectorId: string | null;
   roleCode: "master" | "admin" | "assistant" | "inspector" | null;
 };
 
@@ -24,6 +25,7 @@ async function getUserWithActiveRole(db: ReturnType<typeof getDb>["db"], userId:
       fullName: users.fullName,
       status: users.status,
       authUserId: users.authUserId,
+      inspectorId: users.inspectorId,
       roleCode: userRoles.roleCode
     })
     .from(users)

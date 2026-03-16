@@ -8,6 +8,7 @@ export type OperationalUser = {
   fullName: string;
   status: "pending" | "active" | "blocked" | "inactive";
   authUserId: string | null;
+  inspectorId: string | null;
 };
 
 export async function getUserByAuthUserId(databaseUrl: string, authUserId: string) {
@@ -19,7 +20,8 @@ export async function getUserByAuthUserId(databaseUrl: string, authUserId: strin
       email: users.email,
       fullName: users.fullName,
       status: users.status,
-      authUserId: users.authUserId
+      authUserId: users.authUserId,
+      inspectorId: users.inspectorId
     })
     .from(users)
     .where(eq(users.authUserId, authUserId))
@@ -27,4 +29,3 @@ export async function getUserByAuthUserId(databaseUrl: string, authUserId: strin
 
   return rows[0] ? (rows[0] as OperationalUser) : null;
 }
-

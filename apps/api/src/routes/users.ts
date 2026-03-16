@@ -10,6 +10,7 @@ import {
 import { normalizeApiError } from "../lib/api-errors.js";
 import { buildListMeta, normalizeSearch, parsePagination } from "../lib/listing.js";
 import { changeUserRole } from "../modules/users/change-user-role.js";
+import { linkUserToInspector } from "../modules/users/link-user-inspector.js";
 import { listOperationalUsers } from "../modules/users/list-users.js";
 import { approvePendingUser, blockUser, reactivateUser } from "../modules/users/mutate-user-status.js";
 
@@ -237,6 +238,50 @@ export function registerUsersRoutes(app: FastifyInstance, env: ApiEnv) {
           error: normalized.error,
           ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
         } as any;
+      }
+
+      return result;
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.patch("/users/:id/inspector-link", async (request, reply) => {
+    try {
+      await requireAdminOrMaster(request);
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const body = (request.body ?? {}) as Record<string, unknown>;
+      const inspectorId =
+        body.inspectorId == null ? null : String(body.inspectorId ?? "").trim();
+
+      const result = await linkUserToInspector({
+        databaseUrl: env.databaseUrl,
+        targetUserId: (request.params as any).id as string,
+        inspectorId: inspectorId || null
+      });
+
+      if (!result.ok) {
+        reply.status(result.error === "NOT_FOUND" ? 404 : 400);
+        return {
+          ok: false,
+          error: result.error,
+          message: result.message
+        };
       }
 
       return result;

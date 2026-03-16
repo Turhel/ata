@@ -126,6 +126,7 @@ export const users = pgTable(
     fullName: varchar("full_name", { length: 255 }).notNull(),
     status: userStatusEnum("status").notNull().default("pending"),
     authUserId: varchar("auth_user_id", { length: 255 }).unique(),
+    inspectorId: uuid("inspector_id").unique(),
     lastLoginAt: timestamp("last_login_at"),
     approvedAt: timestamp("approved_at"),
     approvedByUserId: uuid("approved_by_user_id"),
@@ -280,6 +281,7 @@ export const inspectors = pgTable(
     fullName: varchar("full_name", { length: 255 }).notNull(),
     email: varchar("email", { length: 255 }),
     phone: varchar("phone", { length: 50 }),
+    departureCity: varchar("departure_city", { length: 120 }),
     status: varchar("status", { length: 30 }).notNull().default("active"),
     notes: text("notes"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -605,6 +607,10 @@ export const routes = pgTable(
       .references(() => inspectorAccounts.id),
     inspectorId: uuid("inspector_id").references(() => inspectors.id),
     assistantUserId: uuid("assistant_user_id").references(() => users.id),
+    originCity: varchar("origin_city", { length: 120 }),
+    optimizationMode: varchar("optimization_mode", { length: 50 })
+      .notNull()
+      .default("heuristic_city_zip"),
     status: routeStatusEnum("status").notNull().default("draft"),
     version: integer("version").notNull().default(1),
     supersededByRouteId: uuid("superseded_by_route_id").references((): any => routes.id),

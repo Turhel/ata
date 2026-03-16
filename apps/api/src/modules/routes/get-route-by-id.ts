@@ -12,6 +12,8 @@ export type GetRouteResult =
         inspectorAccountId: string;
         inspectorId: string | null;
         assistantUserId: string | null;
+        originCity: string | null;
+        optimizationMode: string;
         status: (typeof routes.status.enumValues)[number];
         version: number;
         publishedAt: Date | null;
@@ -62,6 +64,8 @@ export async function getRouteById(params: {
       inspectorAccountId: routes.inspectorAccountId,
       inspectorId: routes.inspectorId,
       assistantUserId: routes.assistantUserId,
+      originCity: routes.originCity,
+      optimizationMode: routes.optimizationMode,
       status: routes.status,
       version: routes.version,
       publishedAt: routes.publishedAt,

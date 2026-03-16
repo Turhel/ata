@@ -96,6 +96,8 @@ export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
       const inspectorAccountCode = String(body.inspectorAccountCode ?? "").trim();
       const assistantUserId =
         body.assistantUserId == null ? null : String(body.assistantUserId ?? "").trim();
+      const originCity =
+        body.originCity == null ? null : String(body.originCity ?? "").trim();
       const replaceExisting = Boolean(body.replaceExisting ?? false);
       const replaceReason = body.replaceReason == null ? null : String(body.replaceReason ?? "").trim();
 
@@ -115,6 +117,7 @@ export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
         routeDate,
         inspectorAccountCode,
         assistantUserId,
+        originCityOverride: originCity,
         replaceExisting,
         replaceReason
       });

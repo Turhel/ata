@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import {
+  inspectors,
   inspectorAccounts,
   routeSourceBatches,
   routeCandidates,
@@ -11,12 +12,21 @@ import {
 import { getDb } from "../../lib/db.js";
 import { getActiveRoleCodeByUserId } from "../users/get-active-role-by-user-id.js";
 import { getUserById } from "../users/get-user-by-id.js";
+import { optimizeRouteStops } from "./optimize-route-stops.js";
 
 type RouteStatus = (typeof routes.status.enumValues)[number];
 type RouteStopCategory = (typeof routeStops.routeCategory.enumValues)[number];
 
 export type CreateRouteResult =
-  | { ok: true; routeId: string; status: RouteStatus; version: number; totalStops: number }
+  | {
+      ok: true;
+      routeId: string;
+      status: RouteStatus;
+      version: number;
+      totalStops: number;
+      originCity: string | null;
+      optimizationMode: "heuristic_city_zip";
+    }
   | { ok: false; error: "BAD_REQUEST" | "NOT_FOUND" | "FORBIDDEN" | "CONFLICT"; message: string };
 
 function isIsoDate(value: unknown): value is string {
@@ -35,6 +45,7 @@ export async function createRoute(params: {
   routeDate: string;
   inspectorAccountCode: string;
   assistantUserId: string | null;
+  originCityOverride?: string | null;
   replaceExisting: boolean;
   replaceReason: string | null;
 }): Promise<CreateRouteResult> {
@@ -50,6 +61,11 @@ export async function createRoute(params: {
   if (params.replaceExisting && (!params.replaceReason || !params.replaceReason.trim())) {
     return { ok: false, error: "BAD_REQUEST", message: "replaceReason obrigatório ao substituir rota" };
   }
+
+  const originCityOverride =
+    typeof params.originCityOverride === "string" && params.originCityOverride.trim()
+      ? params.originCityOverride.trim()
+      : null;
 
   const { db } = getDb(params.databaseUrl);
 
@@ -130,6 +146,22 @@ export async function createRoute(params: {
   const nextVersion = (latestVersion[0]?.version ?? 0) + 1;
   const routeId = randomUUID();
 
+  const inspector =
+    account.currentInspectorId == null
+      ? null
+      : (
+          await db
+            .select({
+              id: inspectors.id,
+              departureCity: inspectors.departureCity
+            })
+            .from(inspectors)
+            .where(eq(inspectors.id, account.currentInspectorId))
+            .limit(1)
+        )[0] ?? null;
+
+  const originCity = originCityOverride ?? inspector?.departureCity ?? null;
+
   const candidates = await db
     .select({
       id: routeCandidates.id,
@@ -142,6 +174,7 @@ export async function createRoute(params: {
       state: routeCandidates.state,
       zipCode: routeCandidates.zipCode,
       dueDate: routeCandidates.dueDate,
+      isRush: routeCandidates.isRush,
       orderId: routeCandidates.orderId,
       lineNumber: routeCandidates.lineNumber
     })
@@ -154,10 +187,16 @@ export async function createRoute(params: {
     )
     .orderBy(routeCandidates.lineNumber);
 
-  const nonCancelledCandidates = candidates.filter((c) => c.sourceStatus !== "Canceled");
+  const nonCancelledCandidates = candidates.filter((candidate) => candidate.sourceStatus !== "Canceled");
   if (nonCancelledCandidates.length === 0) {
     return { ok: false, error: "BAD_REQUEST", message: "Nenhuma linha elegível encontrada para esta conta" };
   }
+
+  const optimized = optimizeRouteStops({
+    candidates: nonCancelledCandidates,
+    routeDate: params.routeDate,
+    originCity
+  });
 
   await db.transaction(async (tx) => {
     if (existingActive[0]) {
@@ -177,6 +216,8 @@ export async function createRoute(params: {
       inspectorAccountId: account.id,
       inspectorId: account.currentInspectorId ?? null,
       assistantUserId: params.assistantUserId ?? null,
+      originCity: optimized.originCity,
+      optimizationMode: optimized.optimizationMode,
       status: "draft",
       version: nextVersion,
       updatedAt: sql`now()`
@@ -211,30 +252,32 @@ export async function createRoute(params: {
       toStatus: "draft",
       performedByUserId: params.createdByUserId,
       reason: params.replaceExisting ? params.replaceReason : null,
-      metadata: params.replaceExisting ? { replaced: true } : null
+      metadata: {
+        ...(params.replaceExisting ? { replaced: true } : {}),
+        originCity: optimized.originCity,
+        optimizationMode: optimized.optimizationMode
+      }
     });
 
     await tx.insert(routeStops).values(
-      nonCancelledCandidates.map((c, index) => ({
+      optimized.ordered.map((candidate, index) => ({
         id: randomUUID(),
         routeId,
         seq: index + 1,
-        candidateId: c.id,
-        orderId: c.orderId ?? null,
-        routeCategory: toRouteCategory({ routeDate: params.routeDate, dueDate: c.dueDate }),
+        candidateId: candidate.id,
+        orderId: candidate.orderId ?? null,
+        routeCategory: toRouteCategory({ routeDate: params.routeDate, dueDate: candidate.dueDate }),
         stopStatus: "pending" as const,
-        residentName: c.residentName,
-        addressLine1: c.addressLine1,
-        addressLine2: c.addressLine2,
-        city: c.city,
-        state: c.state,
-        zipCode: c.zipCode,
-        dueDate: c.dueDate,
+        residentName: candidate.residentName,
+        addressLine1: candidate.addressLine1,
+        addressLine2: candidate.addressLine2,
+        city: candidate.city,
+        state: candidate.state,
+        zipCode: candidate.zipCode,
+        dueDate: candidate.dueDate,
         updatedAt: sql`now()`
       }))
     );
-
-
   });
 
   return {
@@ -242,6 +285,8 @@ export async function createRoute(params: {
     routeId,
     status: "draft",
     version: nextVersion,
-    totalStops: nonCancelledCandidates.length
+    totalStops: optimized.ordered.length,
+    originCity: optimized.originCity,
+    optimizationMode: optimized.optimizationMode
   };
 }

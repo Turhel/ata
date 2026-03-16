@@ -7,6 +7,7 @@ export type InspectorMutationInput = {
   fullName: string;
   email?: string | null;
   phone?: string | null;
+  departureCity?: string | null;
   status?: string;
   notes?: string | null;
 };
@@ -19,6 +20,7 @@ export type InspectorMutationResult =
         fullName: string;
         email: string | null;
         phone: string | null;
+        departureCity: string | null;
         status: string;
         notes: string | null;
         createdAt: Date | string;
@@ -59,12 +61,14 @@ export async function createInspector(params: {
 
   const email = normalizeOptionalText(params.input.email);
   const phone = normalizeOptionalText(params.input.phone);
+  const departureCity = normalizeOptionalText(params.input.departureCity);
   const notes = normalizeOptionalText(params.input.notes);
   const status = normalizeStatus(params.input.status);
 
   if (
     typeof email === "symbol" ||
     typeof phone === "symbol" ||
+    typeof departureCity === "symbol" ||
     typeof notes === "symbol" ||
     typeof status === "symbol"
   ) {
@@ -78,6 +82,7 @@ export async function createInspector(params: {
       fullName,
       email: email ?? null,
       phone: phone ?? null,
+      departureCity: departureCity ?? null,
       status: status ?? "active",
       notes: notes ?? null
     })
@@ -86,6 +91,7 @@ export async function createInspector(params: {
       fullName: inspectors.fullName,
       email: inspectors.email,
       phone: inspectors.phone,
+      departureCity: inspectors.departureCity,
       status: inspectors.status,
       notes: inspectors.notes,
       createdAt: inspectors.createdAt,
@@ -136,6 +142,14 @@ export async function updateInspector(params: {
     patch.phone = phone ?? null;
   }
 
+  if ("departureCity" in params.input) {
+    const departureCity = normalizeOptionalText(params.input.departureCity);
+    if (typeof departureCity === "symbol") {
+      return { ok: false, error: "BAD_REQUEST", message: "departureCity inválido" };
+    }
+    patch.departureCity = departureCity ?? null;
+  }
+
   if ("notes" in params.input) {
     const notes = normalizeOptionalText(params.input.notes);
     if (typeof notes === "symbol") return { ok: false, error: "BAD_REQUEST", message: "notes inválido" };
@@ -161,6 +175,7 @@ export async function updateInspector(params: {
       fullName: inspectors.fullName,
       email: inspectors.email,
       phone: inspectors.phone,
+      departureCity: inspectors.departureCity,
       status: inspectors.status,
       notes: inspectors.notes,
       createdAt: inspectors.createdAt,
@@ -173,4 +188,3 @@ export async function updateInspector(params: {
 
   return { ok: true, inspector: rows[0] };
 }
-
