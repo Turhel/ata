@@ -1,7 +1,12 @@
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { deriveTestDatabaseUrl, getRequiredDatabaseUrl, recreateDatabase } from "./_db-utils.js";
+import {
+  deriveTestDatabaseUrl,
+  ensureSchemaExists,
+  getRequiredDatabaseUrl,
+  recreateDatabase
+} from "./_db-utils.js";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const apiRoot = resolve(currentDir, "../..");
@@ -32,7 +37,20 @@ async function main() {
   };
 
   runCommand("node", ["--import", "tsx", "src/scripts/migrate.ts"], baseEnv);
-  runCommand("node", ["--import", "tsx", "--test", "src/tests/access.integration.test.ts"], baseEnv);
+  await ensureSchemaExists(testDatabaseUrl, "auth");
+  runCommand("pnpm", ["auth:migrate"], baseEnv);
+  runCommand(
+    "node",
+    [
+      "--import",
+      "tsx",
+      "--test",
+      "src/tests/access.integration.test.ts",
+      "src/tests/auth-me.integration.test.ts",
+      "src/tests/order-workflow.integration.test.ts"
+    ],
+    baseEnv
+  );
 }
 
 await main();

@@ -48,6 +48,16 @@ export async function ensureDrizzleMigrationsTable(pool: Pool) {
   `);
 }
 
+export async function ensureSchemaExists(connectionString: string, schemaName: string) {
+  const pool = new Pool({ connectionString });
+
+  try {
+    await pool.query(`create schema if not exists "${schemaName}"`);
+  } finally {
+    await pool.end();
+  }
+}
+
 export async function countDrizzleMigrations(pool: Pool) {
   const result = await pool.query(
     'select count(*)::int as count from "drizzle"."__drizzle_migrations"'
