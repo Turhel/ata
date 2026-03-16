@@ -16,6 +16,7 @@ import { createRouteSourceBatchFromXlsx } from "../modules/routes/create-route-s
 import { createRoute } from "../modules/routes/create-route.js";
 import { geocodeRouteSourceBatch } from "../modules/routes/geocode-route-source-batch.js";
 import { getRouteById } from "../modules/routes/get-route-by-id.js";
+import { importRouteFromGpx } from "../modules/routes/import-route-from-gpx.js";
 import { listRouteSourceBatchCandidates } from "../modules/routes/list-route-source-batch-candidates.js";
 import { listRoutes } from "../modules/routes/list-routes.js";
 import { publishRoute } from "../modules/routes/publish-route.js";
@@ -311,6 +312,87 @@ export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
           ...result,
           error: normalized.error,
           ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        } as any;
+      }
+
+      return result;
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.post("/routes/import-gpx", async (request, reply) => {
+    try {
+      const { operationalUser } = await requireAdminOrMaster(request);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const file = await (request as any).file?.();
+      if (!file) {
+        reply.status(400);
+        return { ok: false, error: "BAD_REQUEST", message: "Arquivo .gpx não enviado" };
+      }
+
+      const fileName = String(file.filename ?? "").trim();
+      if (!fileName.toLowerCase().endsWith(".gpx")) {
+        reply.status(400);
+        return { ok: false, error: "BAD_REQUEST", message: "Envie um arquivo .gpx válido" };
+      }
+
+      const fieldValue = (fieldName: string) => String((file.fields?.[fieldName]?.value ?? "") as any).trim();
+      const sourceBatchId = fieldValue("sourceBatchId");
+      const routeDate = fieldValue("routeDate");
+      const inspectorAccountCode = fieldValue("inspectorAccountCode");
+      const assistantUserId = fieldValue("assistantUserId") || null;
+      const originCity = fieldValue("originCity") || null;
+      const replaceExisting = ["true", "1", "yes", "y", "sim", "s"].includes(fieldValue("replaceExisting").toLowerCase());
+      const replaceReason = fieldValue("replaceReason") || null;
+
+      if (!sourceBatchId || !routeDate || !inspectorAccountCode) {
+        reply.status(400);
+        return {
+          ok: false,
+          error: "BAD_REQUEST",
+          message: "Campos sourceBatchId, routeDate e inspectorAccountCode são obrigatórios"
+        };
+      }
+
+      const buffer = await file.toBuffer();
+      const result = await importRouteFromGpx({
+        databaseUrl: env.databaseUrl,
+        createdByUserId: operationalUser.id,
+        sourceBatchId,
+        routeDate,
+        inspectorAccountCode,
+        assistantUserId,
+        originCityOverride: originCity,
+        replaceExisting,
+        replaceReason,
+        fileName,
+        buffer
+      });
+
+      if (!result.ok) {
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ...result,
+          error: normalized.error,
+          ...(normalized.legacyCode ? { details: { code: normalized.legacyCode } } : {})
         } as any;
       }
 

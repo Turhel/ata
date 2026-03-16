@@ -392,6 +392,31 @@ export type RouteSourceBatchCandidatesResponse =
       message: string;
     };
 
+export type RouteImportGpxResponse =
+  | {
+      ok: true;
+      routeId: string;
+      status: "draft" | "published" | "superseded" | "cancelled";
+      version: number;
+      totalStops: number;
+      matchedStops: number;
+      unmatchedStops: number;
+      originCity: string | null;
+      optimizationMode: "gpx_import";
+      alerts: {
+        reviewRequiredCount: number;
+        approximateCount: number;
+        notFoundCount: number;
+        pendingCount: number;
+      };
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "NOT_FOUND" | "INVALID_STATUS" | "INTERNAL_ERROR";
+      message: string;
+      details?: ApiErrorDetails;
+    };
+
 export type InspectorAccountItem = {
   id: string;
   accountCode: string;
