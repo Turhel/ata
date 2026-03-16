@@ -1,6 +1,12 @@
 # Aprovação e Gestão de Contas
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/master/MasterInvitations.tsx`
+- Apoio complementar: `docs/telas/.old_site/src/pages/dashboard/master/MasterInspectors.tsx`
+- A implementaÃ§Ã£o nova deve manter a leitura antiga de convites, contas pendentes e aÃ§Ãµes administrativas diretas
+
 
 Permitir ao master gerenciar a entrada e o ciclo de vida dos usuários internos:
 

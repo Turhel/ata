@@ -44,6 +44,7 @@ export type UsersListItem = {
   fullName: string;
   status: OperationalUserStatus;
   authUserId: string | null;
+  roleCode: RoleCode | null;
 };
 
 export type ListMeta = {
@@ -52,6 +53,14 @@ export type ListMeta = {
   total: number;
   totalPages: number;
  };
+
+export type ApiErrorDetails = {
+  code?: string;
+  missingFields?: string[];
+  orderIds?: string[];
+  forbiddenFields?: string[];
+  invalidFields?: string[];
+};
 
 export type UsersListResponse =
   | { ok: true; users: UsersListItem[]; meta: ListMeta }
@@ -65,8 +74,9 @@ export type UserStatusMutationResponse =
   | { ok: true; user: UsersListItem }
   | {
       ok: false;
-      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_STATE" | "INTERNAL_ERROR";
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_STATUS" | "INTERNAL_ERROR";
       message: string;
+      details?: ApiErrorDetails;
     };
 
 export type RoleCode = "master" | "admin" | "assistant" | "inspector";
@@ -140,8 +150,9 @@ export type TeamAssignmentMutationResponse =
     }
   | {
       ok: false;
-      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "BAD_REQUEST" | "CONFLICT" | "INVALID_STATE" | "INTERNAL_ERROR";
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "BAD_REQUEST" | "INVALID_STATUS" | "INTERNAL_ERROR";
       message: string;
+      details?: ApiErrorDetails;
     };
 
 export type SourceOrderStatus = "Assigned" | "Received" | "Canceled";
@@ -179,8 +190,9 @@ export type ClientMutationResponse =
   | { ok: true; client: ClientItem }
   | {
       ok: false;
-      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "NOT_FOUND" | "CONFLICT" | "INTERNAL_ERROR";
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "NOT_FOUND" | "INVALID_STATUS" | "INTERNAL_ERROR";
       message: string;
+      details?: ApiErrorDetails;
     };
 
 export type WorkTypeItem = {
@@ -216,8 +228,9 @@ export type WorkTypeMutationResponse =
   | { ok: true; workType: WorkTypeItem }
   | {
       ok: false;
-      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "NOT_FOUND" | "CONFLICT" | "INTERNAL_ERROR";
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "NOT_FOUND" | "INVALID_STATUS" | "INTERNAL_ERROR";
       message: string;
+      details?: ApiErrorDetails;
     };
 
 export type InspectorItem = {
@@ -286,8 +299,9 @@ export type InspectorAccountMutationResponse =
   | { ok: true; inspectorAccount: InspectorAccountItem }
   | {
       ok: false;
-      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "NOT_FOUND" | "CONFLICT" | "INTERNAL_ERROR";
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "NOT_FOUND" | "INVALID_STATUS" | "INTERNAL_ERROR";
       message: string;
+      details?: ApiErrorDetails;
     };
 
 export type PoolImportNormalizedItem = {
@@ -591,12 +605,11 @@ export type PaymentBatchCreateResponse =
         | "FORBIDDEN"
         | "BAD_REQUEST"
         | "NOT_FOUND"
-        | "CONFLICT"
-        | "ORDER_INCOMPLETE"
         | "INVALID_STATUS"
+        | "VALIDATION_ERROR"
         | "INTERNAL_ERROR";
       message: string;
-      details?: { orderIds?: string[]; missingFields?: string[] };
+      details?: ApiErrorDetails;
     };
 
 export type PaymentBatchCloseResponse =
@@ -611,8 +624,9 @@ export type PaymentBatchCloseResponse =
     }
   | {
       ok: false;
-      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_STATUS" | "ORDER_INCOMPLETE" | "INTERNAL_ERROR";
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_STATUS" | "VALIDATION_ERROR" | "INTERNAL_ERROR";
       message: string;
+      details?: ApiErrorDetails;
     };
 
 export type PaymentBatchPayResponse =
@@ -627,9 +641,9 @@ export type PaymentBatchPayResponse =
     }
   | {
       ok: false;
-      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_STATUS" | "ORDER_INCOMPLETE" | "INTERNAL_ERROR";
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_STATUS" | "VALIDATION_ERROR" | "INTERNAL_ERROR";
       message: string;
-      details?: { orderIds?: string[] };
+      details?: ApiErrorDetails;
     };
 
 export type AdminDashboardResponse =
@@ -790,9 +804,9 @@ export type OrderClaimResponse =
         | "FORBIDDEN"
         | "NOT_FOUND"
         | "INVALID_STATUS"
-        | "ALREADY_CLAIMED"
         | "INTERNAL_ERROR";
       message: string;
+      details?: ApiErrorDetails;
     };
 
 export type OrderSubmitResponse =
@@ -811,11 +825,10 @@ export type OrderSubmitResponse =
         | "FORBIDDEN"
         | "NOT_FOUND"
         | "INVALID_STATUS"
-        | "ORDER_CANCELLED"
-        | "ORDER_INCOMPLETE"
+        | "VALIDATION_ERROR"
         | "INTERNAL_ERROR";
       message: string;
-      details?: { missingFields?: string[] };
+      details?: ApiErrorDetails;
     };
 
 export type OrderResubmitResponse =
@@ -834,11 +847,10 @@ export type OrderResubmitResponse =
         | "FORBIDDEN"
         | "NOT_FOUND"
         | "INVALID_STATUS"
-        | "ORDER_CANCELLED"
-        | "ORDER_INCOMPLETE"
+        | "VALIDATION_ERROR"
         | "INTERNAL_ERROR";
       message: string;
-      details?: { missingFields?: string[] };
+      details?: ApiErrorDetails;
     };
 
 export type OrderPatchRequest = {
@@ -887,7 +899,7 @@ export type OrderPatchResponse =
         | "BAD_REQUEST"
         | "INTERNAL_ERROR";
       message: string;
-      details?: { forbiddenFields?: string[]; invalidFields?: string[] };
+      details?: ApiErrorDetails;
     };
 export type OrderFollowUpRequest = { reason: string };
 export type OrderRejectRequest = { reason: string };
@@ -902,10 +914,10 @@ export type OrderFollowUpResponse =
         | "FORBIDDEN"
         | "NOT_FOUND"
         | "INVALID_STATUS"
-        | "ORDER_INCOMPLETE"
+        | "VALIDATION_ERROR"
         | "INTERNAL_ERROR";
       message: string;
-      details?: { missingFields?: string[] };
+      details?: ApiErrorDetails;
     };
 
 export type OrderRejectResponse =
@@ -917,10 +929,10 @@ export type OrderRejectResponse =
         | "FORBIDDEN"
         | "NOT_FOUND"
         | "INVALID_STATUS"
-        | "ORDER_INCOMPLETE"
+        | "VALIDATION_ERROR"
         | "INTERNAL_ERROR";
       message: string;
-      details?: { missingFields?: string[] };
+      details?: ApiErrorDetails;
     };
 
 export type OrderApproveResponse =
@@ -932,11 +944,10 @@ export type OrderApproveResponse =
         | "FORBIDDEN"
         | "NOT_FOUND"
         | "INVALID_STATUS"
-        | "ORDER_CANCELLED"
-        | "ORDER_INCOMPLETE"
+        | "VALIDATION_ERROR"
         | "INTERNAL_ERROR";
       message: string;
-      details?: { missingFields?: string[] };
+      details?: ApiErrorDetails;
     };
 
 export type OrderReturnToPoolResponse =
@@ -948,8 +959,8 @@ export type OrderReturnToPoolResponse =
         | "FORBIDDEN"
         | "NOT_FOUND"
         | "INVALID_STATUS"
-        | "ORDER_INCOMPLETE"
+        | "VALIDATION_ERROR"
         | "INTERNAL_ERROR";
       message: string;
-      details?: { missingFields?: string[] };
+      details?: ApiErrorDetails;
     };

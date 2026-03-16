@@ -1,6 +1,12 @@
 # Gestão de Pagamentos
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/admin/AdminPayments.tsx`
+- Apoio de histÃ³rico: `docs/telas/.old_site/src/pages/dashboard/admin/AdminPaymentsHistory.tsx`
+- A tela nova deve reaproveitar a separaÃ§Ã£o visual antiga entre resumo, filtros, tabela e aÃ§Ãµes de lote
+
 
 Permitir que admin e master organizem o fluxo financeiro operacional:
 

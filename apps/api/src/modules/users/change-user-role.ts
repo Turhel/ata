@@ -14,6 +14,7 @@ export type ChangeUserRoleResult =
         fullName: string;
         status: "pending" | "active" | "blocked" | "inactive";
         authUserId: string | null;
+        roleCode: RoleCode | null;
       };
       role: {
         userId: string;
@@ -126,7 +127,10 @@ export async function changeUserRole(params: {
 
     return {
       ok: true,
-      user: target as any,
+      user: {
+        ...(target as any),
+        roleCode: inserted.roleCode as RoleCode
+      },
       role: {
         userId: inserted.userId,
         roleCode: inserted.roleCode as RoleCode,

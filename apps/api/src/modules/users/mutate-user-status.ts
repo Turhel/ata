@@ -3,10 +3,36 @@ import { userRoles, users } from "../../db/schema.js";
 import { getDb } from "../../lib/db.js";
 
 type UserStatus = "pending" | "active" | "blocked" | "inactive";
+type UserWithRole = {
+  id: string;
+  email: string;
+  fullName: string;
+  status: UserStatus;
+  authUserId: string | null;
+  roleCode: "master" | "admin" | "assistant" | "inspector" | null;
+};
 
 export type MutateStatusResult =
-  | { ok: true; user: { id: string; email: string; fullName: string; status: UserStatus; authUserId: string | null } }
+  | { ok: true; user: UserWithRole }
   | { ok: false; error: "NOT_FOUND" | "INVALID_STATE"; message: string };
+
+async function getUserWithActiveRole(db: ReturnType<typeof getDb>["db"], userId: string): Promise<UserWithRole | null> {
+  const rows = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      fullName: users.fullName,
+      status: users.status,
+      authUserId: users.authUserId,
+      roleCode: userRoles.roleCode
+    })
+    .from(users)
+    .leftJoin(userRoles, and(eq(userRoles.userId, users.id), eq(userRoles.isActive, true)))
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  return (rows[0] as UserWithRole | undefined) ?? null;
+}
 
 export async function approvePendingUser(params: {
   databaseUrl: string;
@@ -52,19 +78,18 @@ export async function approvePendingUser(params: {
       updatedAt: sql`now()`
     })
     .where(eq(users.id, params.targetUserId))
-    .returning({
-      id: users.id,
-      email: users.email,
-      fullName: users.fullName,
-      status: users.status,
-      authUserId: users.authUserId
-    });
+    .returning({ id: users.id });
 
   if (!updated[0]) {
     return { ok: false, error: "NOT_FOUND", message: "Usu\u00e1rio n\u00e3o encontrado" };
   }
 
-  return { ok: true, user: updated[0] as any };
+  const user = await getUserWithActiveRole(db, params.targetUserId);
+  if (!user) {
+    return { ok: false, error: "NOT_FOUND", message: "Usu\u00e1rio n\u00e3o encontrado" };
+  }
+
+  return { ok: true, user };
 }
 
 export async function blockUser(params: {
@@ -83,19 +108,18 @@ export async function blockUser(params: {
       updatedAt: sql`now()`
     })
     .where(eq(users.id, params.targetUserId))
-    .returning({
-      id: users.id,
-      email: users.email,
-      fullName: users.fullName,
-      status: users.status,
-      authUserId: users.authUserId
-    });
+    .returning({ id: users.id });
 
   if (!updated[0]) {
     return { ok: false, error: "NOT_FOUND", message: "Usu\u00e1rio n\u00e3o encontrado" };
   }
 
-  return { ok: true, user: updated[0] as any };
+  const user = await getUserWithActiveRole(db, params.targetUserId);
+  if (!user) {
+    return { ok: false, error: "NOT_FOUND", message: "Usu\u00e1rio n\u00e3o encontrado" };
+  }
+
+  return { ok: true, user };
 }
 
 export async function reactivateUser(params: {
@@ -132,18 +156,16 @@ export async function reactivateUser(params: {
       updatedAt: sql`now()`
     })
     .where(eq(users.id, params.targetUserId))
-    .returning({
-      id: users.id,
-      email: users.email,
-      fullName: users.fullName,
-      status: users.status,
-      authUserId: users.authUserId
-    });
+    .returning({ id: users.id });
 
   if (!updated[0]) {
     return { ok: false, error: "NOT_FOUND", message: "Usu\u00e1rio n\u00e3o encontrado" };
   }
 
-  return { ok: true, user: updated[0] as any };
-}
+  const user = await getUserWithActiveRole(db, params.targetUserId);
+  if (!user) {
+    return { ok: false, error: "NOT_FOUND", message: "Usu\u00e1rio n\u00e3o encontrado" };
+  }
 
+  return { ok: true, user };
+}

@@ -1,6 +1,12 @@
 # Lista de Ordens
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/OrdersList.tsx`
+- Componentes equivalentes: `docs/telas/.old_site/src/components/orders/OrdersTable.tsx`, `docs/telas/.old_site/src/components/orders/DayOrdersCard.tsx`, `docs/telas/.old_site/src/components/orders/WeeklyReportCard.tsx` e `docs/telas/.old_site/src/components/orders/PeriodReportCard.tsx`
+- A nova lista deve copiar a organizaÃ§Ã£o visual antiga de filtros, agrupamentos, cards e tabela antes de qualquer tentativa de redesign
+
 
 Permitir visualizar, filtrar e acessar ordens do sistema conforme a role e o contexto operacional do usuário.
 

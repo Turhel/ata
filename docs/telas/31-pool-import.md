@@ -1,6 +1,12 @@
 # Importação de Pool
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/admin/AdminPoolImport.tsx`
+- PadrÃµes a preservar: card de upload, estado de progresso, resumo do resultado e histÃ³rico logo abaixo
+- A implementaÃ§Ã£o nova deve manter a experiÃªncia antiga de importaÃ§Ã£o e sÃ³ simplificar o que antes era bugado ou acoplado demais
+
 
 Permitir que admin ou master importe o pool de ordens para o sistema de forma auditável, controlada e rastreável.
 

@@ -1,6 +1,12 @@
 # Tipos de Trabalho e Pricing
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/master/MasterWorkTypes.tsx` e `docs/telas/.old_site/src/pages/dashboard/master/MasterPricing.tsx`
+- A nova tela deve tratar tipos e pricing como um mesmo conjunto visual, como no site antigo, evitando dividir demais a experiÃªncia sem ganho real
+- Ajustes devem se limitar Ã  arquitetura nova e Ã  remoÃ§Ã£o de bugs anteriores
+
 
 Permitir ao master gerenciar:
 

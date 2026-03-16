@@ -1,6 +1,12 @@
 # Lista de Escopos
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/InspectionScopes.tsx`
+- A lista nova deve preservar a lÃ³gica visual antiga de busca, cards/tabela e aÃ§Ãµes por escopo
+- View, ediÃ§Ã£o e cÃ³pia devem continuar aparecendo como variaÃ§Ãµes do mesmo fluxo, nÃ£o como redesign independente
+
 
 Permitir que usuários autorizados consultem escopos já criados, localizem rapidamente uma ordem e acompanhem o estado dos escopos no sistema.
 

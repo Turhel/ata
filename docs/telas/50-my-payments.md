@@ -1,6 +1,12 @@
 # Meus Pagamentos
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/MyPayments.tsx`
+- A implementaÃ§Ã£o nova deve manter o desenho antigo de resumo financeiro + listagem principal + aÃ§Ãµes secundÃ¡rias
+- O objetivo Ã© reaproveitar a experiÃªncia que jÃ¡ era familiar, corrigindo apenas bugs e inconsistÃªncias de dados
+
 
 Permitir ao usuário acompanhar seus pagamentos atuais e a situação financeira mais recente relacionada ao seu trabalho no sistema.
 

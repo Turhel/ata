@@ -1,6 +1,12 @@
 # Gerador de Escopo
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/ScopeGenerator.tsx`
+- A tela nova deve herdar a estrutura em duas Ã¡reas do gerador antigo: formulÃ¡rio operacional + prÃ©via/saÃ­da
+- Ajustes devem ser restritos a bugs, nomenclatura e integraÃ§Ã£o com os dados atuais do projeto
+
 
 Permitir que o assistant gere, edite e salve escopos de inspeção a partir da ordem e do material recebido.
 

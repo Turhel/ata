@@ -1,6 +1,12 @@
 # Configurações
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/Settings.tsx`
+- A nova tela deve copiar a organizaÃ§Ã£o antiga de blocos de configuraÃ§Ã£o e a linguagem direta que jÃ¡ funcionava
+- Qualquer refinamento visual deve ser incremental, nÃ£o uma troca de paradigma
+
 
 Dar ao usuário um espaço claro para configurações pessoais e preferências operacionais que não alteram regras centrais do sistema.
 

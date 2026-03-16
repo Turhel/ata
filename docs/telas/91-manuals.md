@@ -1,6 +1,12 @@
 # Manuais
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/Manuals.tsx`
+- A nova tela deve manter a experiÃªncia antiga de acesso rÃ¡pido a materiais, com navegaÃ§Ã£o simples e foco em legibilidade
+- O objetivo Ã© preservar a familiaridade operacional e sÃ³ corrigir o que antes era instÃ¡vel
+
 
 Centralizar documentos, instruções e materiais de apoio para uso do sistema e da operação.
 

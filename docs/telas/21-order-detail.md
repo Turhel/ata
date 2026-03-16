@@ -2,6 +2,12 @@
 # Detalhe da Ordem
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/components/orders/OrderDetailsDrawer.tsx`
+- Apoio de histÃ³rico: `docs/telas/.old_site/src/components/orders/OrderHistoryDialog.tsx`
+- A tela nova deve aproveitar a hierarquia de informaÃ§Ãµes do drawer antigo e sÃ³ adaptar o container final para a navegaÃ§Ã£o atual
+
 
 Exibir uma ordem individual com contexto suficiente para operação, revisão e auditoria.
 

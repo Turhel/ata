@@ -1,6 +1,12 @@
 # Dashboard do Usuário
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/DashboardHome.tsx`, `docs/telas/.old_site/src/pages/dashboard/DashboardOverview.tsx` e `docs/telas/.old_site/src/pages/dashboard/InspectorDashboard.tsx`
+- Shell base: `docs/telas/.old_site/src/components/dashboard/DashboardLayout.tsx`, `docs/telas/.old_site/src/components/dashboard/AppSidebar.tsx` e `docs/telas/.old_site/src/components/dashboard/DashboardHeader.tsx`
+- A implementaÃ§Ã£o nova deve preservar a estrutura geral do painel antigo, trocando apenas o que for necessÃ¡rio para corrigir bugs e alinhar com os dados/roles atuais
+
 
 Ser a tela inicial operacional do usuário autenticado.
 

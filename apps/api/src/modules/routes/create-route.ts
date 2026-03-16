@@ -165,21 +165,9 @@ export async function createRoute(params: {
         .update(routes)
         .set({
           status: "superseded",
-          supersededByRouteId: routeId,
           updatedAt: sql`now()`
         })
         .where(eq(routes.id, existingActive[0].id));
-      
-      await tx.insert(routeEvents).values({
-        id: randomUUID(),
-        routeId: existingActive[0].id,
-        eventType: "superseded",
-        fromStatus: existingActive[0].status,
-        toStatus: "superseded",
-        performedByUserId: params.createdByUserId,
-        reason: params.replaceReason,
-        metadata: { supersededByRouteId: routeId }
-      });
     }
 
     await tx.insert(routes).values({
@@ -193,6 +181,27 @@ export async function createRoute(params: {
       version: nextVersion,
       updatedAt: sql`now()`
     });
+
+    if (existingActive[0]) {
+      await tx
+        .update(routes)
+        .set({
+          supersededByRouteId: routeId,
+          updatedAt: sql`now()`
+        })
+        .where(eq(routes.id, existingActive[0].id));
+
+      await tx.insert(routeEvents).values({
+        id: randomUUID(),
+        routeId: existingActive[0].id,
+        eventType: "superseded",
+        fromStatus: existingActive[0].status,
+        toStatus: "superseded",
+        performedByUserId: params.createdByUserId,
+        reason: params.replaceReason,
+        metadata: { supersededByRouteId: routeId }
+      });
+    }
 
     await tx.insert(routeEvents).values({
       id: randomUUID(),

@@ -1,6 +1,12 @@
 # Lista do Pool
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/admin/AdminPoolImport.tsx`
+- Blocos equivalentes: histÃ³rico de batches, preview tabular e busca local dentro do lote
+- A tela nova deve reaproveitar a organizaÃ§Ã£o antiga de lista + preview, separando apenas o que agora for endpoint distinto
+
 
 Permitir que admin e master visualizem o pool atual de ordens disponíveis, consultem o efeito das importações e acompanhem a massa operacional antes da posse pelo assistant.
 

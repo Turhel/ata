@@ -1,6 +1,12 @@
 # Aprovações Administrativas
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/admin/AdminApprovals.tsx`
+- Componentes equivalentes: `docs/telas/.old_site/src/components/orders/OrderDetailsDrawer.tsx` e `docs/telas/.old_site/src/components/orders/DuplicateRequestsSection.tsx`
+- A implementaÃ§Ã£o nova deve preservar a experiÃªncia antiga de fila administrativa com detalhe lateral, aÃ§Ãµes explÃ­citas e foco em decisÃ£o rÃ¡pida
+
 
 Permitir que admin e master revisem ordens submetidas e executem as decisões centrais do workflow:
 

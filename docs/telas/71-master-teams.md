@@ -1,6 +1,12 @@
 # Gestão de Times
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/master/MasterTeams.tsx`
+- Apoio de padrÃ£o operacional: `docs/telas/.old_site/src/pages/dashboard/admin/AdminTeam.tsx`
+- A nova tela deve preservar a organizaÃ§Ã£o visual antiga de times, nÃ£o alocados e aÃ§Ãµes de gestÃ£o, com ajustes apenas de robustez
+
 
 Permitir ao master organizar a estrutura entre admins e assistants, definindo quem responde a quem no sistema.
 

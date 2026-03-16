@@ -1,6 +1,12 @@
 # Dashboard do Master
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/master/MasterOverview.tsx`
+- Shell base: `docs/telas/.old_site/src/components/dashboard/DashboardLayout.tsx`, `docs/telas/.old_site/src/components/dashboard/AppSidebar.tsx` e `docs/telas/.old_site/src/components/dashboard/DashboardHeader.tsx`
+- A implementaÃ§Ã£o nova deve seguir o mesmo padrÃ£o antigo de cards KPI + aÃ§Ãµes rÃ¡pidas + resumo do sistema
+
 
 Dar ao master uma visão estrutural e executiva do sistema, com foco em organização, governança e saúde geral da operação.
 

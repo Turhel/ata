@@ -1,6 +1,12 @@
 # Inserção de Ordens
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/OrdersNew.tsx`
+- Shell base: `docs/telas/.old_site/src/components/dashboard/DashboardLayout.tsx`
+- A implementaÃ§Ã£o deve manter a lÃ³gica visual do formulÃ¡rio antigo, com revisÃ£o apenas do que precisar mudar para as regras e endpoints atuais
+
 
 Permitir ao assistant inserir ou registrar ordens operacionalmente a partir do fluxo de trabalho real, antes do envio para revisão.
 

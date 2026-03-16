@@ -1,6 +1,12 @@
 # Visualização de Escopo para Inspetor
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/InspectionScopes.tsx` e `docs/telas/.old_site/src/pages/dashboard/InspectorDashboard.tsx`
+- A visualizaÃ§Ã£o nova deve preservar o padrÃ£o antigo de leitura simples, checklist visual e foco operacional no trabalho do dia
+- Evitar enriquecer demais a tela; o valor principal continua sendo clareza e rapidez para o inspetor
+
 
 Permitir que o inspetor consulte um escopo pronto e utilize um checklist visual local durante a inspeção, sem alterar os dados salvos no sistema.
 

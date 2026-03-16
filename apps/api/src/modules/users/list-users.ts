@@ -1,5 +1,5 @@
 import { and, asc, count, eq, ilike, or } from "drizzle-orm";
-import { users } from "../../db/schema.js";
+import { userRoles, users } from "../../db/schema.js";
 import { getDb } from "../../lib/db.js";
 
 export async function listOperationalUsers(params: {
@@ -30,9 +30,11 @@ export async function listOperationalUsers(params: {
       email: users.email,
       fullName: users.fullName,
       status: users.status,
-      authUserId: users.authUserId
+      authUserId: users.authUserId,
+      roleCode: userRoles.roleCode
     })
     .from(users)
+    .leftJoin(userRoles, and(eq(userRoles.userId, users.id), eq(userRoles.isActive, true)))
     .orderBy(asc(users.email))
     .limit(params.pageSize)
     .offset(params.offset);

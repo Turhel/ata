@@ -3,35 +3,49 @@ import { fromNodeHeaders } from "better-auth/node";
 import { Pool } from "pg";
 import type { ApiEnv } from "../env.js";
 
-let authPool: Pool | undefined;
 type BetterAuthInstance = ReturnType<typeof betterAuth>;
-let authInstance: BetterAuthInstance | undefined;
+type AuthBundle = {
+  pool: Pool;
+  auth: BetterAuthInstance;
+};
+
+const authByConfig = new Map<string, AuthBundle>();
 
 export function getAuth(env: ApiEnv) {
   if (!env.databaseUrl) {
     throw new Error("DATABASE_URL n\u00e3o definido (necess\u00e1rio para Better Auth)");
   }
 
-  if (!authPool) {
-    authPool = new Pool({
+  const authKey = JSON.stringify({
+    databaseUrl: env.databaseUrl,
+    betterAuthSecret: env.betterAuthSecret,
+    betterAuthUrl: env.betterAuthUrl,
+    appWebUrl: env.appWebUrl
+  });
+
+  const cached = authByConfig.get(authKey);
+  if (cached) {
+    return cached.auth;
+  }
+
+  const authPool = new Pool({
       connectionString: env.databaseUrl,
       options: "-c search_path=auth"
     });
-  }
 
-  if (!authInstance) {
-    authInstance = betterAuth({
-      secret: env.betterAuthSecret,
-      baseURL: env.betterAuthUrl,
-      trustedOrigins: [env.appWebUrl],
-      database: authPool,
-      emailAndPassword: {
-        enabled: true
-      }
-    }) as BetterAuthInstance;
-  }
+  const auth = betterAuth({
+    secret: env.betterAuthSecret,
+    baseURL: env.betterAuthUrl,
+    trustedOrigins: [env.appWebUrl],
+    database: authPool,
+    emailAndPassword: {
+      enabled: true
+    }
+  }) as BetterAuthInstance;
 
-  return authInstance;
+  authByConfig.set(authKey, { pool: authPool, auth });
+
+  return auth;
 }
 
 export async function getSessionFromRequest(env: ApiEnv, request: { raw: { headers: any } }) {

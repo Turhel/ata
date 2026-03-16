@@ -2,6 +2,9 @@
 
 ## Objetivo
 
+> ReferÃªncia visual principal das telas: `./.old_site/`.
+> Os arquivos numerados desta pasta devem ser lidos junto com as telas/componentes equivalentes do site antigo.
+
 Este arquivo é o ponto de entrada de `docs/telas/` e lista **telas reais** e seus fluxos.
 
 > Documentação global/conceitual de frontend (padrões, estados, navegação, etc.) fica em `docs/frontend/`.

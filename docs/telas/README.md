@@ -1,5 +1,8 @@
 # Telas do ATA Portal
 
+> ReferÃªncia visual principal para implementaÃ§Ã£o: `docs/telas/.old_site/`.
+> O design antigo passa a ser a base visual das telas novas, com adaptaÃ§Ãµes mÃ­nimas para remover bugs, atualizar navegaÃ§Ã£o e aderir Ã  arquitetura atual.
+
 ## Objetivo
 
 Esta pasta organiza a definição funcional e de UX das **telas reais** do sistema (páginas, fluxos de tela e variações por role quando aplicável).
@@ -62,6 +65,15 @@ Tela existe para ajudar o usuário a executar uma etapa real do trabalho.
 ---
 
 ## Estrutura sugerida para cada tela
+
+### 6. ReferÃªncia visual do site antigo
+
+Sempre que existir correspondÃªncia em `docs/telas/.old_site/`, a implementaÃ§Ã£o deve:
+
+- reaproveitar a estrutura visual antiga
+- manter a hierarquia de blocos, cabeÃ§alho, sidebar e CTAs que jÃ¡ funcionavam
+- evitar reinventar layout sem necessidade real
+- adaptar apenas o necessÃ¡rio para contratos, bugs corrigidos, responsividade e regras novas do projeto
 
 Cada arquivo deve conter, sempre que fizer sentido:
 

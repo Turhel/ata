@@ -1,6 +1,12 @@
 # Duplicatas e Conflitos
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/admin/AdminApprovals.tsx`
+- Componente equivalente: `docs/telas/.old_site/src/components/orders/DuplicateRequestsSection.tsx`
+- A tela nova deve herdar o padrÃ£o antigo de destaque de conflito, contexto suficiente para decisÃ£o e aÃ§Ãµes objetivas
+
 
 Permitir que admin e master identifiquem e tratem ordens com potencial duplicidade ou conflito operacional.
 

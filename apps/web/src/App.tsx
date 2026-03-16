@@ -6,6 +6,7 @@ import { Users } from "./pages/Users";
 import { Orders } from "./pages/Orders";
 import { PoolImport } from "./pages/PoolImport";
 import Auth from "./pages/Auth";
+import { NotFoundPage } from "./pages/ErrorPage";
 
 const queryClient = new QueryClient();
 
@@ -21,8 +22,11 @@ export function App() {
             <Route path="orders" element={<Orders />} />
             <Route path="pool-import" element={<PoolImport />} />
           </Route>
+          {/* Qualquer rota não mapeada cai na tela de erro com botão "Voltar ao início" */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
   );
 }
+

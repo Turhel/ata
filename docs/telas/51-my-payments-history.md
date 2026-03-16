@@ -1,6 +1,12 @@
 # Histórico de Pagamentos
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/MyPayments.tsx`
+- Apoio de padrÃ£o administrativo: `docs/telas/.old_site/src/pages/dashboard/admin/AdminPaymentsHistory.tsx`
+- O histÃ³rico pessoal deve manter a leitura simples do fluxo antigo, sem separar visualmente demais do mÃ³dulo de pagamentos principal
+
 
 Permitir ao usuário consultar pagamentos passados, com visão organizada por período e lote, preservando rastreabilidade financeira.
 

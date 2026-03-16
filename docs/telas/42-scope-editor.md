@@ -1,6 +1,12 @@
 # Editor de Escopo
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/InspectionScopes.tsx`
+- O editor deve reaproveitar o padrÃ£o antigo de modal/drawer/formulÃ¡rio de ediÃ§Ã£o, em vez de inventar uma tela nova sem necessidade
+- A adaptaÃ§Ã£o deve focar em bugs, validaÃ§Ã£o e campos realmente suportados pelo backend atual
+
 
 Permitir que o assistant crie, edite e salve escopos operacionais de inspeção vinculados a uma ordem.
 

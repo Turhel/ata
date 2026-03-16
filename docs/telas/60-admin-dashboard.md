@@ -1,6 +1,12 @@
 # Dashboard Administrativo
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/admin/AdminOverview.tsx`
+- Shell base: `docs/telas/.old_site/src/components/dashboard/DashboardLayout.tsx`, `docs/telas/.old_site/src/components/dashboard/AppSidebar.tsx` e `docs/telas/.old_site/src/components/dashboard/DashboardHeader.tsx`
+- O painel novo deve manter a cara do dashboard administrativo antigo: KPIs no topo, blocos de atenÃ§Ã£o e atalhos operacionais claros
+
 
 Dar ao admin uma visão central do fluxo operacional do time, com foco em revisão, pendências, produtividade e saúde do processo.
 

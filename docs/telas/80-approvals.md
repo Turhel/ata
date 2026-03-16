@@ -1,6 +1,12 @@
 # Aprovações Administrativas
 
 ## Objetivo
+## ReferÃªncia visual do site antigo
+
+- Fonte visual principal: `docs/telas/.old_site/src/pages/dashboard/admin/AdminApprovals.tsx`
+- Componentes equivalentes: `docs/telas/.old_site/src/components/orders/OrderDetailsDrawer.tsx` e `docs/telas/.old_site/src/components/orders/OrderHistoryDialog.tsx`
+- Esta tela deve permanecer visualmente colada ao fluxo administrativo antigo de revisÃ£o de ordens, sem tentar criar um layout novo por padrÃ£o
+
 
 Permitir que admin e master revisem ordens submetidas e decidam o próximo passo do fluxo:
 
