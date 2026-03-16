@@ -6,7 +6,7 @@
     "dev": "pnpm -C ../../packages/shared build && tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx --test src/tests/listing.test.ts src/tests/create-payment-batch.test.ts src/tests/access.integration.test.ts src/tests/auth-me.integration.test.ts src/tests/order-workflow.integration.test.ts src/tests/parse-pool-xlsx.test.ts",
+    "test": "node --import tsx --test src/tests/listing.test.ts src/tests/create-payment-batch.test.ts src/tests/access.integration.test.ts src/tests/auth-me.integration.test.ts src/tests/order-workflow.integration.test.ts src/tests/pool-import.integration.test.ts src/tests/parse-pool-xlsx.test.ts",
     "test:integration": "tsx src/scripts/run-integration-tests.ts",
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts --name init",
     "db:migrate": "tsx src/scripts/migrate.ts --baseline-if-existing",
