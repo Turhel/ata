@@ -7,6 +7,7 @@ import {
   requireOperationalUser,
   requireRole
 } from "../lib/permissions.js";
+import { normalizeApiError } from "../lib/api-errors.js";
 import { listClients } from "../modules/catalogs/list-clients.js";
 import { listInspectorAccounts } from "../modules/catalogs/list-inspector-accounts.js";
 import { listInspectors } from "../modules/catalogs/list-inspectors.js";
@@ -90,8 +91,14 @@ export function registerCatalogRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        reply.status(result.error === "NOT_FOUND" ? 404 : 400);
-        return result;
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        };
       }
 
       return result;
@@ -126,8 +133,14 @@ export function registerCatalogRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        reply.status(result.error === "NOT_FOUND" ? 404 : 400);
-        return result;
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        };
       }
 
       return result;
@@ -186,8 +199,14 @@ export function registerCatalogRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        reply.status(result.error === "NOT_FOUND" ? 404 : result.error === "CONFLICT" ? 409 : 400);
-        return result;
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        };
       }
 
       return result;
@@ -222,8 +241,14 @@ export function registerCatalogRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        reply.status(result.error === "NOT_FOUND" ? 404 : result.error === "CONFLICT" ? 409 : 400);
-        return result;
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        };
       }
 
       return result;
@@ -257,8 +282,14 @@ export function registerCatalogRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        reply.status(result.error === "CONFLICT" ? 409 : 400);
-        return result;
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        };
       }
 
       return result;
@@ -293,8 +324,14 @@ export function registerCatalogRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        reply.status(result.error === "NOT_FOUND" ? 404 : result.error === "CONFLICT" ? 409 : 400);
-        return result;
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        };
       }
 
       return result;
@@ -353,8 +390,14 @@ export function registerCatalogRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        reply.status(result.error === "CONFLICT" ? 409 : 400);
-        return result;
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        };
       }
 
       return result;
@@ -389,8 +432,14 @@ export function registerCatalogRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        reply.status(result.error === "NOT_FOUND" ? 404 : result.error === "CONFLICT" ? 409 : 400);
-        return result;
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        };
       }
 
       return result;

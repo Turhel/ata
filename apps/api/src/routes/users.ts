@@ -7,6 +7,7 @@ import {
   requireOperationalUser,
   requireRole
 } from "../lib/permissions.js";
+import { normalizeApiError } from "../lib/api-errors.js";
 import { buildListMeta, normalizeSearch, parsePagination } from "../lib/listing.js";
 import { changeUserRole } from "../modules/users/change-user-role.js";
 import { listOperationalUsers } from "../modules/users/list-users.js";
@@ -92,11 +93,13 @@ export function registerUsersRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        reply.status(result.error === "NOT_FOUND" ? 404 : 409);
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
         return {
           ok: false,
-          error: result.error === "NOT_FOUND" ? "NOT_FOUND" : "INVALID_STATE",
-          message: result.message
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { code: normalized.legacyCode } } : {})
         };
       }
 
@@ -133,8 +136,14 @@ export function registerUsersRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        reply.status(404);
-        return { ok: false, error: "NOT_FOUND", message: result.message };
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { code: normalized.legacyCode } } : {})
+        };
       }
 
       return { ok: true, user: result.user };
@@ -170,11 +179,13 @@ export function registerUsersRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        reply.status(result.error === "NOT_FOUND" ? 404 : 409);
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
         return {
           ok: false,
-          error: result.error === "NOT_FOUND" ? "NOT_FOUND" : "INVALID_STATE",
-          message: result.message
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { code: normalized.legacyCode } } : {})
         };
       }
 
@@ -219,10 +230,13 @@ export function registerUsersRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        const status =
-          result.error === "NOT_FOUND" ? 404 : result.error === "FORBIDDEN" ? 403 : 400;
-        reply.status(status);
-        return result;
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ...result,
+          error: normalized.error,
+          ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        } as any;
       }
 
       return result;

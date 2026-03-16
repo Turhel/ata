@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { ApiEnv } from "../env.js";
 import { closePaymentBatch } from "../modules/payments/close-payment-batch.js";
+import { normalizeApiError } from "../lib/api-errors.js";
 import {
   PermissionError,
   requireActiveUser,
@@ -121,18 +122,13 @@ export function registerPaymentBatchRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        const status =
-          result.error === "NOT_FOUND"
-            ? 404
-            : result.error === "CONFLICT"
-              ? 409
-              : result.error === "INVALID_STATUS"
-                ? 409
-                : result.error === "ORDER_INCOMPLETE"
-                  ? 422
-                  : 400;
-        reply.status(status);
-        return result;
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ...result,
+          error: normalized.error,
+          ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        } as any;
       }
 
       return result;
@@ -168,10 +164,13 @@ export function registerPaymentBatchRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        const status =
-          result.error === "NOT_FOUND" ? 404 : result.error === "ORDER_INCOMPLETE" ? 422 : 409;
-        reply.status(status);
-        return result;
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ...result,
+          error: normalized.error,
+          ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        } as any;
       }
 
       return result;
@@ -207,10 +206,13 @@ export function registerPaymentBatchRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        const status =
-          result.error === "NOT_FOUND" ? 404 : result.error === "ORDER_INCOMPLETE" ? 422 : 409;
-        reply.status(status);
-        return result;
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ...result,
+          error: normalized.error,
+          ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        } as any;
       }
 
       return result;

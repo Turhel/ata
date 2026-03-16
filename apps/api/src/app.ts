@@ -1,6 +1,8 @@
 import fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
+import rateLimit from "@fastify/rate-limit";
+import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from "fastify-type-provider-zod";
 import type { ApiEnv } from "./env.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerHealthRoute } from "./routes/health.js";
@@ -14,10 +16,18 @@ import { registerDashboardRoutes } from "./routes/dashboard.js";
 import { registerTeamAssignmentsRoutes } from "./routes/team-assignments.js";
 import { registerRoutesRoutes } from "./routes/routes.js";
 
-export function buildApp(env: ApiEnv) {
-  const app = fastify();
+export async function buildApp(env: ApiEnv) {
+  const app = fastify().withTypeProvider<ZodTypeProvider>();
 
-  void app.register(multipart, {
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
+
+  await app.register(rateLimit, {
+    max: 100,
+    timeWindow: "1 minute"
+  });
+
+  await app.register(multipart, {
     limits: {
       files: 1,
       fileSize: 10 * 1024 * 1024
@@ -25,7 +35,7 @@ export function buildApp(env: ApiEnv) {
   });
 
   if (env.appEnv === "development") {
-    void app.register(cors, {
+    await app.register(cors, {
       origin: env.appWebUrl,
       credentials: true
     });
@@ -45,3 +55,4 @@ export function buildApp(env: ApiEnv) {
 
   return app;
 }
+

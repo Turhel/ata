@@ -9,8 +9,18 @@
   },
   "dependencies": {
     "@ata-portal/contracts": "workspace:*",
+    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-query-devtools": "^5.91.3",
+    "autoprefixer": "^10.4.27",
+    "better-auth": "^1.5.5",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.577.0",
+    "postcss": "^8.5.8",
     "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^7.13.1",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.1"
   },
   "devDependencies": {
     "@types/react": "^18.0.0",

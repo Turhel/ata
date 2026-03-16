@@ -1,0 +1,114 @@
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { getPool } from "../../../_lib/db.js";
+import { HttpError, requireAuth } from "../../../_lib/auth.js";
+
+export const config = { runtime: "nodejs" };
+
+function parseBody(req: any) {
+  if (!req.body) return {};
+  return typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+}
+
+const SELECT_FIELDS = `
+  pr.id,
+  pr.assistant_id as assistant_id_raw,
+  ua.id as assistant_id,
+  ua.clerk_user_id as assistant_clerk_user_id,
+  pr.period_start,
+  pr.period_end,
+  pr.period_type,
+  pr.total_orders,
+  pr.total_value,
+  pr.category_breakdown,
+  pr.status,
+  pr.requested_at,
+  pr.reviewed_at,
+  pr.reviewed_by as reviewed_by_raw,
+  ur.id as reviewed_by,
+  ur.clerk_user_id as reviewed_by_clerk_user_id,
+  pr.review_notes,
+  pr.created_at,
+  pr.updated_at
+`;
+
+const SELECT_JOIN = `
+  from public.payment_requests pr
+  left join public.users ua
+    on (ua.id::text = pr.assistant_id::text or ua.clerk_user_id = pr.assistant_id::text)
+  left join public.users ur
+    on (ur.id::text = pr.reviewed_by::text or ur.clerk_user_id = pr.reviewed_by::text)
+`;
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  try {
+    const auth = await requireAuth(req);
+    const db = getPool();
+
+    const id = req.query?.id ? String(req.query.id) : null;
+    if (!id) throw new HttpError(400, "Missing id");
+
+    if (req.method === "GET") {
+      if (auth.user.role === "user") {
+        const allowed = await db.query(
+          `
+            select 1
+            from public.payment_requests
+            where id = $1 and assistant_id::text = any($2::text[])
+            limit 1
+          `,
+          [id, [auth.user.id, auth.clerkUserId].filter(Boolean)],
+        );
+        if ((allowed.rows?.length ?? 0) === 0) throw new HttpError(403, "Forbidden");
+      }
+
+      const r = await db.query(
+        `
+          select ${SELECT_FIELDS}
+          ${SELECT_JOIN}
+          where pr.id = $1
+          limit 1
+        `,
+        [id],
+      );
+      return res.status(200).json({ ok: true, request: r.rows?.[0] ?? null });
+    }
+
+    if (req.method === "PATCH") {
+      await requireAuth(req, { roles: ["admin", "master"] });
+      const body = parseBody(req);
+      const status = body.status ?? null;
+      if (!status) throw new HttpError(400, "status is required");
+
+      await db.query(
+        `
+          update public.payment_requests
+          set
+            status = $1,
+            reviewed_at = now(),
+            reviewed_by = $2,
+            review_notes = $3,
+            updated_at = now()
+          where id = $4
+        `,
+        [status, auth.user.id, body.review_notes ?? null, id],
+      );
+
+      const r = await db.query(
+        `
+          select ${SELECT_FIELDS}
+          ${SELECT_JOIN}
+          where pr.id = $1
+          limit 1
+        `,
+        [id],
+      );
+      return res.status(200).json({ ok: true, request: r.rows?.[0] ?? null });
+    }
+
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
+  } catch (err: any) {
+    const status = err?.status && Number.isFinite(err.status) ? err.status : 500;
+    return res.status(status).json({ ok: false, error: err?.message ?? "unknown error" });
+  }
+}
+

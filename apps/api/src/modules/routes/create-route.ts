@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import {
   inspectorAccounts,
+  routeSourceBatches,
   routeCandidates,
   routeEvents,
   routes,
@@ -51,6 +52,20 @@ export async function createRoute(params: {
   }
 
   const { db } = getDb(params.databaseUrl);
+
+  const sourceBatchRows = await db
+    .select({ id: routeSourceBatches.id, routeDate: routeSourceBatches.routeDate })
+    .from(routeSourceBatches)
+    .where(eq(routeSourceBatches.id, params.sourceBatchId))
+    .limit(1);
+
+  const sourceBatch = sourceBatchRows[0];
+  if (!sourceBatch) {
+    return { ok: false, error: "NOT_FOUND", message: "Source batch não encontrado" };
+  }
+  if (String(sourceBatch.routeDate) !== params.routeDate) {
+    return { ok: false, error: "BAD_REQUEST", message: "routeDate não confere com o batch informado" };
+  }
 
   const inspectorAccount = await db
     .select({
@@ -145,6 +160,28 @@ export async function createRoute(params: {
   }
 
   await db.transaction(async (tx) => {
+    if (existingActive[0]) {
+      await tx
+        .update(routes)
+        .set({
+          status: "superseded",
+          supersededByRouteId: routeId,
+          updatedAt: sql`now()`
+        })
+        .where(eq(routes.id, existingActive[0].id));
+      
+      await tx.insert(routeEvents).values({
+        id: randomUUID(),
+        routeId: existingActive[0].id,
+        eventType: "superseded",
+        fromStatus: existingActive[0].status,
+        toStatus: "superseded",
+        performedByUserId: params.createdByUserId,
+        reason: params.replaceReason,
+        metadata: { supersededByRouteId: routeId }
+      });
+    }
+
     await tx.insert(routes).values({
       id: routeId,
       routeDate: params.routeDate,
@@ -188,27 +225,7 @@ export async function createRoute(params: {
       }))
     );
 
-    if (existingActive[0]) {
-      await tx
-        .update(routes)
-        .set({
-          status: "superseded",
-          supersededByRouteId: routeId,
-          updatedAt: sql`now()`
-        })
-        .where(eq(routes.id, existingActive[0].id));
 
-      await tx.insert(routeEvents).values({
-        id: randomUUID(),
-        routeId: existingActive[0].id,
-        eventType: "superseded",
-        fromStatus: existingActive[0].status,
-        toStatus: "superseded",
-        performedByUserId: params.createdByUserId,
-        reason: params.replaceReason,
-        metadata: { supersededByRouteId: routeId }
-      });
-    }
   });
 
   return {

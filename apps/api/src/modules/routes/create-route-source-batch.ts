@@ -26,7 +26,10 @@ export async function createRouteSourceBatchFromXlsx(params: {
 }): Promise<CreateRouteSourceBatchResult> {
   const { db } = getDb(params.databaseUrl);
 
-  const candidates = parseRouteSourceXlsxBuffer({ buffer: params.buffer });
+  const parsedCandidates = parseRouteSourceXlsxBuffer({ buffer: params.buffer });
+  const candidates = parsedCandidates.filter((candidate) => {
+    return typeof candidate.externalOrderCode === "string" && candidate.externalOrderCode.trim().length > 0;
+  });
 
   const externalCodes = Array.from(
     new Set(
@@ -111,4 +114,3 @@ export async function createRouteSourceBatchFromXlsx(params: {
     inspectorAccountCodes
   };
 }
-

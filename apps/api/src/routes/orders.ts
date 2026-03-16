@@ -8,6 +8,7 @@ import {
   requireOperationalUser,
   requireRole
 } from "../lib/permissions.js";
+import { normalizeApiError } from "../lib/api-errors.js";
 import { orders } from "../db/schema.js";
 import { getDb } from "../lib/db.js";
 import { buildListMeta, normalizeSearch, parsePagination } from "../lib/listing.js";
@@ -359,16 +360,14 @@ export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
             });
 
       if (!result.ok) {
-        const status =
-          result.error === "NOT_FOUND"
-            ? 404
-            : result.error === "FORBIDDEN"
-              ? 403
-              : result.error === "INVALID_STATUS"
-                ? 409
-                : 400;
-        reply.status(status);
-        return { ok: false, error: result.error, message: result.message };
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { code: normalized.legacyCode } } : {})
+        };
       }
 
       return { ok: true, note: result.note };
@@ -405,8 +404,14 @@ export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        reply.status(result.error === "NOT_FOUND" ? 404 : 409);
-        return { ok: false, error: result.error, message: result.message };
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { code: normalized.legacyCode } } : {})
+        };
       }
 
       return { ok: true, order: result.order };
@@ -443,21 +448,15 @@ export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        const status =
-          result.error === "NOT_FOUND"
-            ? 404
-            : result.error === "FORBIDDEN"
-              ? 403
-              : result.error === "ORDER_INCOMPLETE"
-                ? 422
-                : 409;
-
-        reply.status(status);
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
         return {
           ok: false,
-          error: result.error,
+          error: normalized.error,
           message: result.message,
-          ...(result.details ? { details: result.details } : {})
+          ...(result.details || normalized.legacyCode
+            ? { details: { ...(result.details ?? {}), ...(normalized.legacyCode ? { code: normalized.legacyCode } : {}) } }
+            : {})
         };
       }
 
@@ -495,21 +494,15 @@ export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        const status =
-          result.error === "NOT_FOUND"
-            ? 404
-            : result.error === "FORBIDDEN"
-              ? 403
-              : result.error === "ORDER_INCOMPLETE"
-                ? 422
-                : 409;
-
-        reply.status(status);
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
         return {
           ok: false,
-          error: result.error,
+          error: normalized.error,
           message: result.message,
-          ...(result.details ? { details: result.details } : {})
+          ...(result.details || normalized.legacyCode
+            ? { details: { ...(result.details ?? {}), ...(normalized.legacyCode ? { code: normalized.legacyCode } : {}) } }
+            : {})
         };
       }
 
@@ -556,14 +549,15 @@ export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
           : await patchOrderAsAdminOrMaster({ databaseUrl: env.databaseUrl, orderId: id, body });
 
       if (!result.ok) {
-        const status =
-          result.error === "NOT_FOUND" ? 404 : result.error === "FORBIDDEN" ? 403 : result.error === "BAD_REQUEST" ? 400 : 409;
-        reply.status(status);
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
         return {
           ok: false,
-          error: result.error,
+          error: normalized.error,
           message: result.message,
-          ...(result.details ? { details: result.details } : {})
+          ...(result.details || normalized.legacyCode
+            ? { details: { ...(result.details ?? {}), ...(normalized.legacyCode ? { code: normalized.legacyCode } : {}) } }
+            : {})
         };
       }
 
@@ -605,13 +599,15 @@ export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        const status = result.error === "NOT_FOUND" ? 404 : result.error === "ORDER_INCOMPLETE" ? 422 : 409;
-        reply.status(status);
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
         return {
           ok: false,
-          error: result.error,
+          error: normalized.error,
           message: result.message,
-          ...(result.details ? { details: result.details } : {})
+          ...(result.details || normalized.legacyCode
+            ? { details: { ...(result.details ?? {}), ...(normalized.legacyCode ? { code: normalized.legacyCode } : {}) } }
+            : {})
         };
       }
 
@@ -653,13 +649,15 @@ export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        const status = result.error === "NOT_FOUND" ? 404 : result.error === "ORDER_INCOMPLETE" ? 422 : 409;
-        reply.status(status);
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
         return {
           ok: false,
-          error: result.error,
+          error: normalized.error,
           message: result.message,
-          ...(result.details ? { details: result.details } : {})
+          ...(result.details || normalized.legacyCode
+            ? { details: { ...(result.details ?? {}), ...(normalized.legacyCode ? { code: normalized.legacyCode } : {}) } }
+            : {})
         };
       }
 
@@ -697,19 +695,15 @@ export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        const status =
-          result.error === "NOT_FOUND"
-            ? 404
-            : result.error === "ORDER_INCOMPLETE"
-              ? 422
-              : 409;
-
-        reply.status(status);
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
         return {
           ok: false,
-          error: result.error,
+          error: normalized.error,
           message: result.message,
-          ...(result.details ? { details: result.details } : {})
+          ...(result.details || normalized.legacyCode
+            ? { details: { ...(result.details ?? {}), ...(normalized.legacyCode ? { code: normalized.legacyCode } : {}) } }
+            : {})
         };
       }
 
@@ -751,13 +745,15 @@ export function registerOrdersRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        const status = result.error === "NOT_FOUND" ? 404 : result.error === "ORDER_INCOMPLETE" ? 422 : 409;
-        reply.status(status);
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
         return {
           ok: false,
-          error: result.error,
+          error: normalized.error,
           message: result.message,
-          ...(result.details ? { details: result.details } : {})
+          ...(result.details || normalized.legacyCode
+            ? { details: { ...(result.details ?? {}), ...(normalized.legacyCode ? { code: normalized.legacyCode } : {}) } }
+            : {})
         };
       }
 

@@ -7,6 +7,7 @@ import {
   requireOperationalUser,
   requireRole
 } from "../lib/permissions.js";
+import { normalizeApiError } from "../lib/api-errors.js";
 import { createTeamAssignment } from "../modules/team-assignments/create-team-assignment.js";
 import { deactivateTeamAssignment } from "../modules/team-assignments/deactivate-team-assignment.js";
 import { listTeamAssignments } from "../modules/team-assignments/list-team-assignments.js";
@@ -73,22 +74,26 @@ export function registerTeamAssignmentsRoutes(app: FastifyInstance, env: ApiEnv)
         return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
       }
 
-      const result = await createTeamAssignment({
-        databaseUrl: env.databaseUrl,
-        actorUserId: operationalUser.id,
-        actorRole: role as "master" | "admin",
-        body: request.body
-      });
+       const result = await createTeamAssignment({
+         databaseUrl: env.databaseUrl,
+         actorUserId: operationalUser.id,
+         actorRole: role as "master" | "admin",
+         body: request.body
+       });
 
-      if (!result.ok) {
-        const status =
-          result.error === "NOT_FOUND" ? 404 : result.error === "FORBIDDEN" ? 403 : result.error === "CONFLICT" ? 409 : 400;
-        reply.status(status);
-        return result;
-      }
+       if (!result.ok) {
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        };
+       }
 
-      return result;
-    } catch (error) {
+       return result;
+     } catch (error) {
       if (error instanceof PermissionError) {
         reply.status(error.statusCode);
         return {
@@ -119,22 +124,26 @@ export function registerTeamAssignmentsRoutes(app: FastifyInstance, env: ApiEnv)
         return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
       }
 
-      const result = await deactivateTeamAssignment({
-        databaseUrl: env.databaseUrl,
-        actorUserId: operationalUser.id,
-        actorRole: role as "master" | "admin",
-        assignmentId: (request.params as any).id as string
-      });
+       const result = await deactivateTeamAssignment({
+         databaseUrl: env.databaseUrl,
+         actorUserId: operationalUser.id,
+         actorRole: role as "master" | "admin",
+         assignmentId: (request.params as any).id as string
+       });
 
-      if (!result.ok) {
-        const status =
-          result.error === "NOT_FOUND" ? 404 : result.error === "FORBIDDEN" ? 403 : 409;
-        reply.status(status);
-        return result;
-      }
+       if (!result.ok) {
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        };
+       }
 
-      return result;
-    } catch (error) {
+       return result;
+     } catch (error) {
       if (error instanceof PermissionError) {
         reply.status(error.statusCode);
         return {

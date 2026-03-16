@@ -1,4 +1,4 @@
-﻿import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import {
   clients,
@@ -513,51 +513,57 @@ export async function importPoolFromJsonNormalized(params: {
   let ignoredRows = 0;
   let errorRows = 0;
 
-  for (const item of params.payload.items) {
-    const lineNumber = Number.isFinite(item.lineNumber) ? item.lineNumber : 0;
-    const externalOrderCode =
-      typeof item.externalOrderCode === "string" && item.externalOrderCode.trim()
-        ? item.externalOrderCode.trim()
-        : `__invalid__line_${lineNumber || "unknown"}`;
-    const sourceStatus: SourceStatus = isSourceStatus(item.sourceStatus)
-      ? item.sourceStatus
-      : "Assigned";
-
-    try {
-      const result = await db.transaction(async (tx) =>
-        processPoolImportItem({
-          tx,
-          batchId,
-          importedByUserId: params.importedByUserId,
-          item: {
-            ...item,
-            rawPayload: item.rawPayload ?? {}
-          }
-        })
-      );
-
-      if (result.importAction === "created") insertedRows += 1;
-      else if (result.importAction === "updated") updatedRows += 1;
-      else errorRows += 1;
-    } catch (error) {
-      errorRows += 1;
-
-      const message = error instanceof Error ? error.message : "erro desconhecido";
-      await db.insert(poolImportItems).values({
-        id: randomUUID(),
-        batchId,
-        lineNumber,
-        externalOrderCode,
-        sourceStatus,
-        sourceInspectorAccountCode: item.sourceInspectorAccountCode ?? null,
-        sourceClientCode: item.sourceClientCode ?? null,
-        sourceWorkTypeCode: item.sourceWorkTypeCode ?? null,
-        rawPayload: item.rawPayload,
-        matchedOrderId: null,
-        importAction: "failed",
-        errorMessage: message
-      });
-    }
+  try {
+    await db.transaction(async (tx) => {
+      for (const item of params.payload.items) {
+        const lineNumber = Number.isFinite(item.lineNumber) ? item.lineNumber : 0;
+        const externalOrderCode =
+          typeof item.externalOrderCode === "string" && item.externalOrderCode.trim()
+            ? item.externalOrderCode.trim()
+            : `__invalid__line_${lineNumber || "unknown"}`;
+        const sourceStatus: SourceStatus = isSourceStatus(item.sourceStatus)
+          ? item.sourceStatus
+          : "Assigned";
+    
+        try {
+          const result = await processPoolImportItem({
+            tx,
+            batchId,
+            importedByUserId: params.importedByUserId,
+            item: {
+              ...item,
+              rawPayload: item.rawPayload ?? {}
+            }
+          });
+    
+          if (result.importAction === "created") insertedRows += 1;
+          else if (result.importAction === "updated") updatedRows += 1;
+          else errorRows += 1;
+        } catch (error) {
+          errorRows += 1;
+    
+          const message = error instanceof Error ? error.message : "erro desconhecido";
+          await tx.insert(poolImportItems).values({
+            id: randomUUID(),
+            batchId,
+            lineNumber,
+            externalOrderCode,
+            sourceStatus,
+            sourceInspectorAccountCode: item.sourceInspectorAccountCode ?? null,
+            sourceClientCode: item.sourceClientCode ?? null,
+            sourceWorkTypeCode: item.sourceWorkTypeCode ?? null,
+            rawPayload: item.rawPayload,
+            matchedOrderId: null,
+            importAction: "failed",
+            errorMessage: message
+          });
+        }
+      }
+    });
+  } catch (error) {
+    // Should never happen since we catch inside the transaction loop, but keeping it safe
+    console.error("Fatal transaction error", error);
+    errorRows = totalRows;
   }
 
   const status =

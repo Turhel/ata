@@ -1,4 +1,6 @@
-﻿import type { FastifyInstance } from "fastify";
+import type { FastifyInstance } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import { z } from "zod";
 import type { ApiEnv } from "../env.js";
 import {
   PermissionError,
@@ -7,13 +9,41 @@ import {
   requireOperationalUser,
   requireRole
 } from "../lib/permissions.js";
+import { normalizeApiError } from "../lib/api-errors.js";
 import { getPoolImportBatchById } from "../modules/orders/get-pool-import-batch.js";
 import { getPoolImportFailures } from "../modules/orders/get-pool-import-failures.js";
 import { importPoolFromJsonNormalized } from "../modules/orders/import-pool-json.js";
 import { parsePoolXlsxBuffer } from "../modules/orders/parse-pool-xlsx.js";
 import { reprocessPoolImportItem } from "../modules/orders/reprocess-pool-import-item.js";
 
+const poolImportItemSchema = z.object({
+  lineNumber: z.number(),
+  externalOrderCode: z.string().min(1),
+  sourceStatus: z.enum(["Assigned", "Received", "Canceled"]),
+  residentName: z.string().optional().nullable(),
+  addressLine1: z.string().optional().nullable(),
+  addressLine2: z.string().optional().nullable(),
+  city: z.string().optional().nullable(),
+  state: z.string().optional().nullable(),
+  zipCode: z.string().optional().nullable(),
+  availableDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  deadlineDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  isRush: z.boolean().optional().nullable(),
+  isVacant: z.boolean().optional().nullable(),
+  sourceInspectorAccountCode: z.string().optional().nullable(),
+  sourceClientCode: z.string().optional().nullable(),
+  sourceWorkTypeCode: z.string().optional().nullable(),
+  rawPayload: z.any()
+});
+
+const poolImportSchema = z.object({
+  fileName: z.string().min(1),
+  items: z.array(poolImportItemSchema)
+});
+
 export function registerPoolImportRoutes(app: FastifyInstance, env: ApiEnv) {
+  const typedApp = app.withTypeProvider<ZodTypeProvider>();
+
   async function requireAdminOrMaster(request: any) {
     const authSession = await requireAuthenticated(env, request);
     const operationalUser = await requireOperationalUser(env, authSession.user.id);
@@ -22,69 +52,59 @@ export function registerPoolImportRoutes(app: FastifyInstance, env: ApiEnv) {
     return { authSession, operationalUser };
   }
 
-  app.post("/pool-import", async (request, reply) => {
-    try {
-      const { operationalUser } = await requireAdminOrMaster(request);
+  typedApp.post(
+    "/pool-import",
+    {
+      schema: { body: poolImportSchema }
+    },
+    async (request, reply) => {
+      try {
+        const { operationalUser } = await requireAdminOrMaster(request);
 
-      if (!env.databaseUrl) {
-        reply.status(500);
-        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
-      }
-
-      const body = request.body as any;
-      if (!body || typeof body !== "object") {
-        reply.status(400);
-        return { ok: false, error: "BAD_REQUEST", message: "Body JSON inválido" };
-      }
-
-      const fileName = body.fileName;
-      const items = body.items;
-
-      if (typeof fileName !== "string" || !Array.isArray(items)) {
-        reply.status(400);
-        return {
-          ok: false,
-          error: "BAD_REQUEST",
-          message: "Payload inválido: esperado { fileName: string, items: array }"
-        };
-      }
-
-      const result = await importPoolFromJsonNormalized({
-        databaseUrl: env.databaseUrl,
-        importedByUserId: operationalUser.id,
-        payload: { fileName, items }
-      });
-
-      return {
-        ok: true,
-        batch: {
-          id: result.batchId,
-          fileName,
-          status: result.status,
-          counters: {
-            totalRows: result.totalRows,
-            insertedRows: result.insertedRows,
-            updatedRows: result.updatedRows,
-            ignoredRows: result.ignoredRows,
-            errorRows: result.errorRows
-          }
+        if (!env.databaseUrl) {
+          reply.status(500);
+          return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
         }
-      };
-    } catch (error) {
-      if (error instanceof PermissionError) {
-        reply.status(error.statusCode);
-        return {
-          ok: false,
-          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
-          message: error.message
-        };
-      }
 
-      const message = error instanceof Error ? error.message : "erro desconhecido";
-      reply.status(500);
-      return { ok: false, error: "INTERNAL_ERROR", message };
+        const { fileName, items } = request.body;
+
+        const result = await importPoolFromJsonNormalized({
+          databaseUrl: env.databaseUrl,
+          importedByUserId: operationalUser.id,
+          payload: { fileName, items }
+        });
+
+        return {
+          ok: true,
+          batch: {
+            id: result.batchId,
+            fileName,
+            status: result.status,
+            counters: {
+              totalRows: result.totalRows,
+              insertedRows: result.insertedRows,
+              updatedRows: result.updatedRows,
+              ignoredRows: result.ignoredRows,
+              errorRows: result.errorRows
+            }
+          }
+        };
+      } catch (error) {
+        if (error instanceof PermissionError) {
+          reply.status(error.statusCode);
+          return {
+            ok: false,
+            error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+            message: error.message
+          };
+        }
+
+        const message = error instanceof Error ? error.message : "erro desconhecido";
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message };
+      }
     }
-  });
+  );
 
   app.post("/pool-import/xlsx", async (request, reply) => {
     try {
@@ -233,9 +253,15 @@ export function registerPoolImportRoutes(app: FastifyInstance, env: ApiEnv) {
         return { ok: false, error: "NOT_FOUND", message: "Item de importação não encontrado" };
       }
 
-      if (!result.ok) {
-        reply.status(400);
-        return { ok: false, error: result.error, message: result.message };
+       if (!result.ok) {
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { code: normalized.legacyCode } } : {})
+        };
       }
 
       return result;

@@ -7,6 +7,7 @@ import {
   requireOperationalUser,
   requireRole
 } from "../lib/permissions.js";
+import { normalizeApiError } from "../lib/api-errors.js";
 import { createRouteSourceBatchFromXlsx } from "../modules/routes/create-route-source-batch.js";
 import { createRoute } from "../modules/routes/create-route.js";
 import { getRouteById } from "../modules/routes/get-route-by-id.js";
@@ -42,7 +43,8 @@ export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
         return { ok: false, error: "BAD_REQUEST", message: "Envie um arquivo .xlsx válido" };
       }
 
-      const routeDateRaw = String((file.fields?.routeDate?.value ?? "") as any).trim();
+      const queryRouteDate = (request.query as any)?.routeDate;
+      const routeDateRaw = String((file.fields?.routeDate?.value ?? queryRouteDate ?? "") as any).trim();
       if (!/^\d{4}-\d{2}-\d{2}$/.test(routeDateRaw)) {
         reply.status(400);
         return { ok: false, error: "BAD_REQUEST", message: "Campo routeDate obrigatório (YYYY-MM-DD)" };
@@ -118,8 +120,13 @@ export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        reply.status(result.error === "NOT_FOUND" ? 404 : result.error === "CONFLICT" ? 409 : 400);
-        return result;
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ...result,
+          error: normalized.error,
+          ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        } as any;
       }
 
       return result;
@@ -161,8 +168,14 @@ export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       if (!result.ok) {
-        reply.status(result.error === "NOT_FOUND" ? 404 : 409);
-        return { ok: false, error: result.error, message: result.message };
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { code: normalized.legacyCode } } : {})
+        };
       }
 
       return result;
@@ -194,8 +207,13 @@ export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
       const id = String((request.params as any).id ?? "").trim();
       const result = await getRouteById({ databaseUrl: env.databaseUrl, routeId: id });
       if (!result.ok) {
-        reply.status(404);
-        return result;
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ...result,
+          error: normalized.error,
+          ...(normalized.legacyCode ? { details: { ...(result as any).details, code: normalized.legacyCode } } : {})
+        } as any;
       }
 
       return result;
