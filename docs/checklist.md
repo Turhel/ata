@@ -1,10 +1,10 @@
 # ATA Portal - Checklist Mestre do Projeto
 
-> Estado consolidado com base no que já foi validado e implementado ao longo desta conversa.
+> Estado consolidado com base no que já foi validado no código, infraestrutura local e testes executados.
 >
 > Convenção:
 >
-> - `[x]` concluído
+> - `[X]` concluído
 > - `[ ]` pendente
 > - `[-]` parcialmente iniciado / precisa evoluir
 
@@ -35,7 +35,7 @@
 - [X] `dist` fora do versionamento
 - [X] `.env` fora do versionamento
 - [X] `README.md` ajustado para refletir o bootstrap atual
-- [ ] Revisar periodicamente documentação para acompanhar evolução real do código
+- [ ] Revisar periodicamente a documentação para acompanhar a evolução real do código
 
 ---
 
@@ -67,6 +67,7 @@
 - [X] Drizzle configurado para o schema operacional
 - [X] Migrations operacionais funcionando
 - [X] Seed operacional funcionando
+- [X] Fluxo de baseline de migrations para banco já existente
 
 ### 3.2 Schema de autenticação (`auth.*`)
 
@@ -91,6 +92,8 @@
 - [X] `work_types`
 - [X] `payment_batches`
 - [X] `payment_batch_items`
+- [X] `routes`
+- [X] `route_events`
 
 ---
 
@@ -113,7 +116,7 @@
 ### 4.3 CORS e comunicação frontend/backend
 
 - [X] CORS mínimo em development
-- [X] Credenciais/sessão funcionando em dev
+- [X] Credenciais / sessão funcionando em dev
 - [ ] Revisar estratégia final de CORS / domínio real em produção
 
 ---
@@ -133,17 +136,16 @@
 - [X] Aprovação de usuário `pending -> active`
 - [X] Bloqueio de usuário
 - [X] Reativação de usuário
-- [ ] Alteração de role com regras formais
-- [ ] Regras mais completas para promoção/rebaixamento
+- [X] Alteração de role com regras formais
+- [ ] Regras mais completas para promoção / rebaixamento
 - [ ] Gestão estrutural mais fina de permissões
 
 ### 5.3 Team assignments
 
-- [-] Estrutura de banco existe
-
-- [ ] Endpoints de team assignments
-- [ ] CRUD mínimo de team assignments
-- [ ] Visões por time
+- [X] Estrutura de banco existe
+- [X] Endpoints de team assignments
+- [X] CRUD mínimo de team assignments
+- [-] Visões por time
 - [ ] Regras operacionais por time no workflow
 
 ---
@@ -163,20 +165,22 @@
 ### 6.2 Gestão mínima de usuários no frontend
 
 - [X] Tela simples para listagem de usuários
-- [X] Ações simples de aprovação/bloqueio/reativação
+- [X] Ações simples de aprovação / bloqueio / reativação
+- [X] Alteração de role integrada à API
 
 ### 6.3 O que ainda falta no frontend
 
-- [ ] Estrutura real de telas e rotas do app
+- [ ] Estrutura final de telas e rotas do app
 - [ ] Views por role mais completas
-- [-] Tela de detalhe de order (dev UI existente, n?o tela final)
-- [-] Tela de hist?rico da order (dev UI existente, n?o tela final)
-- [-] Tela de importa??o de pool (leitura/reprocessamento no dev UI, n?o fluxo final)
+- [-] Tela de detalhe de order (dev UI existente, não tela final)
+- [-] Tela de histórico da order (dev UI existente, não tela final)
+- [-] Tela de importação de pool (leitura / reprocessamento no dev UI, não fluxo final)
 - [ ] Tela financeira
-- [ ] Dashboard do assistant
-- [ ] Dashboard administrativo
+- [-] Dashboard do assistant
+- [-] Dashboard administrativo
+- [-] UI dev alinhada ao visual do site antigo
 - [ ] UX de produção
-- [ ] Tratamento melhor de loading/erro
+- [ ] Tratamento melhor de loading / erro
 
 ---
 
@@ -189,7 +193,7 @@
 - [X] `pool_import_batches`
 - [X] `pool_import_items`
 - [X] `source_status` separado de `status`
-- [X] enums principais do workflow de orders
+- [X] Enums principais do workflow de orders
 
 ### 7.2 Regras arquiteturais já respeitadas
 
@@ -215,15 +219,15 @@
 
 ### 8.2 O que ainda falta na importação
 
-- [ ] Import real de `.xlsx`
-- [ ] Parser robusto do arquivo real
+- [X] Import real de `.xlsx`
+- [-] Parser robusto do arquivo real
 - [ ] Política mais madura para `ignored` / `failed`
 - [ ] Regras mais seguras para update sem destruir histórico operacional
-- [X] Tratamento expl?cito para `source_status = Canceled`
+- [X] Tratamento explícito para `source_status = Canceled`
 - [ ] Melhor auditoria de mudanças entre batches
-- [X] Resolu??o real para cat?logos (`client`, `work_type`, `inspector_account`)
+- [X] Resolução real para catálogos (`client`, `work_type`, `inspector_account`)
 - [X] Leitura administrativa de falhas por batch
-- [X] Reprocessamento expl?cito de item falho
+- [X] Reprocessamento explícito de item falho
 
 ---
 
@@ -237,12 +241,12 @@
 
 ### 9.2 Ainda falta
 
-- [ ] Paginação
-- [ ] Filtros básicos
+- [X] Paginação
+- [X] Filtros básicos
 - [ ] Ordenação controlada
 - [X] Leitura de histórico por endpoint
 - [X] Leitura de notas por endpoint
-- [ ] Visões segmentadas por time
+- [-] Visões segmentadas por time
 
 ---
 
@@ -267,7 +271,7 @@
 - [X] Regras de edição em `in_progress`
 - [X] Regras de edição em `follow_up`
 - [X] Bloqueios fortes em `approved`, `batched`, `paid`, `cancelled`
-- [X] Tela m?nima dessas filas no frontend
+- [X] Tela mínima dessas filas no frontend
 
 ---
 
@@ -290,7 +294,7 @@
 
 - [ ] Revisão de consistência fina dos códigos de erro de validação
 - [X] Endpoint para leitura de `order_events`
-- [X] Endpoint para leitura/cria??o de `order_notes`
+- [X] Endpoint para leitura / criação de `order_notes`
 - [ ] Regras mais ricas para conflito de duplicidade
 - [ ] Ações administrativas extras conforme evolução do fluxo
 
@@ -308,7 +312,7 @@
 
 - [X] Fluxo explícito para `source_status = Canceled` vindo do import
 - [X] Geração de evento `cancelled_from_source` quando aplicável
-- [X] Política clara para esconder/remover essas ordens da fila normal
+- [X] Política clara para esconder / remover essas ordens da fila normal
 - [X] Regras para preservar histórico quando cancelamento chega tardiamente
 
 ---
@@ -321,15 +325,15 @@
 - [X] Eventos de import
 - [X] Eventos de claim / submit / follow-up / reject / approve / return-to-pool
 - [X] Endpoint de leitura de histórico por order
-- [X] Exibi??o de hist?rico no frontend (dev UI)
+- [X] Exibição de histórico no frontend (dev UI)
 
 ### 13.2 order_notes
 
-- [X] Modelagem aplicada no c?digo/banco
+- [X] Modelagem aplicada no código / banco
 - [X] Endpoints para notas
 - [-] Tipos de nota
 - [X] Regras de visibilidade por role
-- [-] Uso em follow-up/rejei??o/contexto administrativo
+- [-] Uso em follow-up / rejeição / contexto administrativo
 
 ---
 
@@ -340,52 +344,51 @@
 - [X] `inspectors`
 - [X] `inspector_accounts`
 - [X] `inspector_account_assignments`
-- [X] CRUD m?nimo administrativo
-- [X] Resolu??o correta entre conta externa e pessoa
-- [X] Hist?rico de titularidade de conta
+- [X] CRUD mínimo administrativo
+- [X] Resolução correta entre conta externa e pessoa
+- [X] Histórico de titularidade de conta
 
 ### 14.2 Clientes
 
 - [X] `clients`
-- [X] CRUD m?nimo administrativo
-- [X] Resolu??o do c?digo importado para cat?logo real
+- [X] CRUD mínimo administrativo
+- [X] Resolução do código importado para catálogo real
 
 ### 14.3 Tipos de trabalho
 
 - [X] `work_types`
-- [X] CRUD m?nimo administrativo
-- [ ] Uso em validação operacional
+- [X] CRUD mínimo administrativo
+- [X] Uso em validação operacional
 - [X] Uso em futura regra de pagamento
 
 ---
 
 ## 15. Financeiro
 
-### 15.1 Estrutura financeira m?nima
+### 15.1 Estrutura financeira mínima
 
 - [X] `payment_batches`
 - [X] `payment_batch_items`
-- [X] Enums/status do financeiro aplicados no schema
+- [X] Enums / status do financeiro aplicados no schema
 
 ### 15.2 Workflow financeiro
 
+- [X] `POST /payment-batches`
 - [X] `GET /payment-batches`
+- [X] `GET /payment-batches/:id`
 - [X] `POST /payment-batches/:id/close`
 - [X] `POST /payment-batches/:id/pay`
-- [ ] `POST /payment-batches/:id/close`
-- [ ] `POST /payment-batches/:id/pay`
-- [X] Sele??o de ordens `approved`
+- [X] Seleção de ordens `approved`
 - [X] Marcar orders como `paid`
 - [X] Travar orders como `batched`
-- [ ] Marcar orders como `paid`
 - [X] Impedir duplicidade da mesma order no mesmo lote
 
 ### 15.3 Regras financeiras
 
-- [X] C?lculo por `work_type`
+- [X] Cálculo por `work_type`
 - [X] Snapshot de valores no lote
 - [ ] Bloqueios fortes após `closed` / `paid`
-- [ ] Visão resumida futura para assistant/inspector
+- [ ] Visão resumida futura para assistant / inspector
 
 ---
 
@@ -393,38 +396,56 @@
 
 ### 16.1 Assistant
 
-- [ ] Dashboard pessoal
-- [ ] Pendências próprias
-- [ ] Follow-ups próprios
-- [ ] Métricas próprias
+- [X] Dashboard pessoal
+- [X] Pendências próprias
+- [X] Follow-ups próprios
+- [-] Métricas próprias
 
 ### 16.2 Admin
 
-- [ ] Dashboard administrativo
-- [ ] Produtividade por time
-- [ ] Pendências de revisão
-- [ ] Visão de filas operacionais
-- [ ] Indicadores financeiros
+- [X] Dashboard administrativo
+- [-] Produtividade por time
+- [X] Pendências de revisão
+- [X] Visão de filas operacionais
+- [X] Indicadores financeiros
 
 ### 16.3 Master
 
-- [ ] Visão estrutural global
-- [ ] Painel de gestão ampla
+- [-] Visão estrutural global
+- [-] Painel de gestão ampla
 
 ### 16.4 Inspector
 
 - [ ] Painel limitado ao escopo permitido
 
+### 16.5 Rotas / roteirização
+
+- [X] Import de source batch `.xlsx` para rotas
+- [X] Criação de rota a partir de batch e conta de inspetor
+- [X] Publicação de rota
+- [X] Leitura de rota por `id`
+- [ ] Listagem de rotas
+- [ ] Atualização por `.gpx`
+- [ ] Fluxo completo de substituição / revisão operacional
+- [ ] Views finais de rota no frontend
+
 ---
 
 ## 17. Testes
 
-### 17.1 Ainda falta quase tudo aqui
+### 17.1 Estado atual dos testes
 
-- [ ] Testes unitários de regras de workflow
-- [ ] Testes de integração da API
+- [X] `pnpm -r typecheck`
+- [X] `pnpm -r build`
+- [X] `pnpm -r test`
+- [X] `pnpm -C apps/api test:integration`
+- [X] Fluxo isolado de testes de integração com banco dedicado (`ata_portal_test`)
+- [-] Testes unitários / parsers já existem para paginação, listagem, validação de lote financeiro e importação `.xlsx`
+- [-] Testes de integração da API já existem, mas ainda cobrem uma fatia pequena do sistema
+- [-] Testes para gestão de usuários existem parcialmente (`changeUserRole`)
+- [-] Testes para `team_assignments` existem
 - [ ] Testes para auth + `/me`
-- [ ] Testes para gestão de usuários
+- [ ] Testes completos para gestão de usuários (`approve`, `block`, `reactivate`, listagem)
 - [ ] Testes para importação do pool
 - [ ] Testes para claim / submit / follow-up / reject / approve / return-to-pool
 - [ ] Testes de concorrência em `claim`
@@ -462,7 +483,7 @@
 ### Próximos passos imediatos
 
 - [X] Expandir `GET /orders` para visão do assistant
-- [X] Criar UI m?nima para filas do assistant
+- [X] Criar UI mínima para filas do assistant
 - [X] Implementar `POST /orders/:id/resubmit`
 - [X] Implementar `PATCH /orders/:id` com campos operacionais permitidos
 - [X] Criar endpoint de leitura de `order_events`
@@ -474,13 +495,13 @@
 - [X] Implementar `inspectors`
 - [X] Implementar `inspector_accounts`
 - [X] Implementar `inspector_account_assignments`
-- [X] Evoluir import do pool para resolver cat?logos
+- [X] Evoluir import do pool para resolver catálogos
 
 ### Depois disso
 
-- [X] Implementar financeiro
-- [-] Implementar financeiro
-- [ ] Implementar dashboards
+- [-] Endurecer financeiro
+- [-] Evoluir dashboards
+- [ ] Implementar / amadurecer rotas
 - [ ] Adicionar testes
 - [ ] Preparar produção
 
@@ -496,21 +517,22 @@
 - [X] Usuário operacional e roles básicas
 - [X] Bootstrap local funcional
 - [X] Núcleo inicial do workflow de orders
-- [X] Cat?logos operacionais m?nimos
-- [X] Base financeira m?nima de loteamento
+- [X] Catálogos operacionais mínimos
+- [X] Base financeira mínima de loteamento
+- [-] Base inicial de rotas / roteirização
 
 ### Meio do caminho
 
 - [-] Frontend ainda é majoritariamente dev UI
-- [-] Orders j? t?m workflow base, mas faltam refinamentos, time views e telas finais
-- [-] Import j? existe, com falhas/reprocessamento e cat?logos, mas ainda n?o ? o import final do arquivo real
+- [-] Orders já têm workflow base, mas faltam refinamentos, time views e telas finais
+- [-] Import já existe, com `.xlsx`, falhas / reprocessamento e catálogos, mas ainda precisa amadurecer regras e parser
 
 ### Grandes blocos ainda faltando
 
-- [-] Cat?logos operacionais completos
-- [-] Financeiro completo (base pronta, faltam vis�es e endurecimento)
-- [-] Financeiro completo
-- [ ] Dashboards
+- [-] Catálogos operacionais completos
+- [-] Financeiro completo (base pronta, faltam visões e endurecimento)
+- [-] Rotas / roteirização completas
+- [-] Dashboards
 - [ ] Testes automatizados
 - [ ] Endurecimento e produção
 
@@ -522,11 +544,11 @@ Considerar o projeto realmente concluído quando, no mínimo, existir:
 
 - [ ] fluxo completo de auth e acesso por role
 - [ ] gestão administrativa básica estável
-- [ ] import real do pool por `.xlsx`
+- [X] import real do pool por `.xlsx`
 - [ ] workflow completo de orders para assistant e admin
 - [ ] histórico legível de orders
 - [ ] catálogos operacionais completos
-- [ ] financeiro com snapshot e lotes
+- [X] financeiro com snapshot e lotes
 - [ ] frontend utilizável além do modo dev
 - [ ] testes cobrindo o núcleo crítico
-- [ ] processo de deploy/restore/documentação operacional coerente
+- [ ] processo de deploy / restore / documentação operacional coerente
