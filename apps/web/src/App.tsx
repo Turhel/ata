@@ -5,6 +5,9 @@ import { Dashboard } from "./pages/Dashboard";
 import { Users } from "./pages/Users";
 import { Orders } from "./pages/Orders";
 import { PoolImport } from "./pages/PoolImport";
+import { RoutesAdmin } from "./pages/RoutesAdmin";
+import { RouteOperational } from "./pages/RouteOperational";
+import { RouteDaySummary } from "./pages/RouteDaySummary";
 import Auth from "./pages/Auth";
 import { NotFoundPage } from "./pages/ErrorPage";
 
@@ -20,6 +23,9 @@ export function App() {
             <Route index element={<Dashboard />} />
             <Route path="users" element={<Users />} />
             <Route path="orders" element={<Orders />} />
+            <Route path="admin/routes" element={<RoutesAdmin />} />
+            <Route path="route-operational" element={<RouteOperational />} />
+            <Route path="route-day-summary" element={<RouteDaySummary />} />
             <Route path="pool-import" element={<PoolImport />} />
           </Route>
           {/* Qualquer rota não mapeada cai na tela de erro com botão "Voltar ao início" */}
@@ -29,4 +35,3 @@ export function App() {
     </QueryClientProvider>
   );
 }
-

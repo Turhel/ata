@@ -1,48 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
+import type { AdminDashboardResponse } from "@ata-portal/contracts";
 
-interface DashboardMetrics {
-  scope: "global" | "team";
-  users: {
-    pending: number;
-    active: number;
-    blocked: number;
-  };
-  orders: {
-    available: number;
-    inProgress: number;
-    submitted: number;
-    followUp: number;
-    rejected: number;
-    approved: number;
-    batched: number;
-    paid: number;
-    cancelled: number;
-  };
-  payments: {
-    open: number;
-    closed: number;
-    paid: number;
-    cancelled: number;
-  };
-  imports: {
-    processing: number;
-    completed: number;
-    partiallyCompleted: number;
-    failed: number;
-  };
-  team: {
-    assistants: number;
-    orders: {
-      availableToTeam: number;
-      inProgress: number;
-      submitted: number;
-      followUp: number;
-      approved: number;
-      batched: number;
-      paid: number;
-    };
-  } | null;
-}
+type DashboardMetrics = Extract<AdminDashboardResponse, { ok: true }>["dashboard"];
 
 export function useMetrics() {
   return useQuery({
@@ -57,7 +16,7 @@ export function useMetrics() {
         throw new Error("Falha ao carregar as métricas do dashboard");
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as AdminDashboardResponse;
       if (!data.ok) {
         throw new Error(data.message || "Erro desconhecido da API");
       }

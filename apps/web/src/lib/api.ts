@@ -6,6 +6,22 @@ import type {
   InspectorAccountsListResponse,
   InspectorsListResponse,
   MeResponse,
+  OperationalRouteCurrentResponse,
+  RouteCreateRequest,
+  RouteCreateResponse,
+  RouteDayCloseGetResponse,
+  RouteDaySummaryResponse,
+  RouteDayCloseUpsertRequest,
+  RouteDayCloseUpsertResponse,
+  RouteDetailResponse,
+  RouteExportEmailPreviewResponse,
+  RouteExportGpxResponse,
+  RouteImportGpxResponse,
+  RoutePublishResponse,
+  RoutesListResponse,
+  RouteSourceBatchCandidatesResponse,
+  RouteSourceBatchGeocodeResponse,
+  RouteSourceBatchUploadResponse,
   OrderEventsListResponse,
   OrderGetResponse,
   OrderNoteCreateRequest,
@@ -145,6 +161,354 @@ export async function fetchAssistantDashboard(apiUrl: string): Promise<Assistant
   }
 
   return data as AssistantDashboardResponse;
+}
+
+export async function fetchOperationalRouteCurrent(
+  apiUrl: string,
+  routeDate?: string
+): Promise<OperationalRouteCurrentResponse> {
+  const qs = routeDate ? `?routeDate=${encodeURIComponent(routeDate)}` : "";
+  const response = await apiFetch(apiUrl, `/routes/operational/current${qs}`, {
+    headers: { Accept: "application/json" }
+  });
+
+  const data: unknown = await response.json().catch(() => undefined);
+
+  if (!response.ok) {
+    if (typeof data === "object" && data != null) {
+      return data as OperationalRouteCurrentResponse;
+    }
+    return {
+      ok: false,
+      error: "INTERNAL_ERROR",
+      message: `HTTP ${response.status} ao chamar /routes/operational/current`
+    };
+  }
+
+  return data as OperationalRouteCurrentResponse;
+}
+
+export async function fetchRouteDayClose(apiUrl: string, routeId: string): Promise<RouteDayCloseGetResponse> {
+  const response = await apiFetch(apiUrl, `/routes/${encodeURIComponent(routeId)}/day-close`, {
+    headers: { Accept: "application/json" }
+  });
+
+  const data: unknown = await response.json().catch(() => undefined);
+
+  if (!response.ok) {
+    if (typeof data === "object" && data != null) {
+      return data as RouteDayCloseGetResponse;
+    }
+    return {
+      ok: false,
+      error: "INTERNAL_ERROR",
+      message: `HTTP ${response.status} ao chamar /routes/:id/day-close`
+    };
+  }
+
+  return data as RouteDayCloseGetResponse;
+}
+
+export async function upsertRouteDayClose(
+  apiUrl: string,
+  routeId: string,
+  payload: RouteDayCloseUpsertRequest
+): Promise<RouteDayCloseUpsertResponse> {
+  const response = await apiFetch(apiUrl, `/routes/${encodeURIComponent(routeId)}/day-close`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data: unknown = await response.json().catch(() => undefined);
+
+  if (!response.ok) {
+    if (typeof data === "object" && data != null) {
+      return data as RouteDayCloseUpsertResponse;
+    }
+    return {
+      ok: false,
+      error: "INTERNAL_ERROR",
+      message: `HTTP ${response.status} ao chamar /routes/:id/day-close`
+    };
+  }
+
+  return data as RouteDayCloseUpsertResponse;
+}
+
+export async function fetchRouteDaySummary(
+  apiUrl: string,
+  routeDate: string,
+  inspectorAccountCode?: string
+): Promise<RouteDaySummaryResponse> {
+  const qs = new URLSearchParams({ routeDate });
+  if (inspectorAccountCode) {
+    qs.set("inspectorAccountCode", inspectorAccountCode);
+  }
+
+  const response = await apiFetch(apiUrl, `/routes/day-summary?${qs.toString()}`, {
+    headers: { Accept: "application/json" }
+  });
+
+  const data: unknown = await response.json().catch(() => undefined);
+
+  if (!response.ok) {
+    if (typeof data === "object" && data != null) {
+      return data as RouteDaySummaryResponse;
+    }
+    return {
+      ok: false,
+      error: "INTERNAL_ERROR",
+      message: `HTTP ${response.status} ao chamar /routes/day-summary`
+    };
+  }
+
+  return data as RouteDaySummaryResponse;
+}
+
+export async function fetchRoutes(
+  apiUrl: string,
+  params: { routeDate?: string; inspectorAccountCode?: string; status?: string; page?: number; pageSize?: number } = {}
+): Promise<RoutesListResponse> {
+  const qs = new URLSearchParams();
+  if (params.routeDate) qs.set("routeDate", params.routeDate);
+  if (params.inspectorAccountCode) qs.set("inspectorAccountCode", params.inspectorAccountCode);
+  if (params.status) qs.set("status", params.status);
+  if (params.page) qs.set("page", String(params.page));
+  if (params.pageSize) qs.set("pageSize", String(params.pageSize));
+
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  const response = await apiFetch(apiUrl, `/routes${suffix}`, {
+    headers: { Accept: "application/json" }
+  });
+
+  const data: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    if (typeof data === "object" && data != null) return data as RoutesListResponse;
+    return { ok: false, error: "INTERNAL_ERROR", message: `HTTP ${response.status} ao chamar /routes` };
+  }
+
+  return data as RoutesListResponse;
+}
+
+export async function uploadRouteSourceBatchXlsx(
+  apiUrl: string,
+  payload: { file: File; routeDate: string }
+): Promise<RouteSourceBatchUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", payload.file);
+  formData.append("routeDate", payload.routeDate);
+
+  const response = await apiFetch(apiUrl, "/routes/source-batches/xlsx", {
+    method: "POST",
+    body: formData
+  });
+
+  const data: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    if (typeof data === "object" && data != null) return data as RouteSourceBatchUploadResponse;
+    return {
+      ok: false,
+      error: "INTERNAL_ERROR",
+      message: `HTTP ${response.status} ao chamar /routes/source-batches/xlsx`
+    };
+  }
+
+  return data as RouteSourceBatchUploadResponse;
+}
+
+export async function geocodeRouteSourceBatch(
+  apiUrl: string,
+  payload: { batchId: string; force?: boolean }
+): Promise<RouteSourceBatchGeocodeResponse> {
+  const response = await apiFetch(apiUrl, `/routes/source-batches/${encodeURIComponent(payload.batchId)}/geocode`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ force: payload.force === true })
+  });
+
+  const data: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    if (typeof data === "object" && data != null) return data as RouteSourceBatchGeocodeResponse;
+    return {
+      ok: false,
+      error: "INTERNAL_ERROR",
+      message: `HTTP ${response.status} ao chamar /routes/source-batches/:id/geocode`
+    };
+  }
+
+  return data as RouteSourceBatchGeocodeResponse;
+}
+
+export async function fetchRouteSourceBatchCandidates(
+  apiUrl: string,
+  payload: { batchId: string; review?: "required"; page?: number; pageSize?: number }
+): Promise<RouteSourceBatchCandidatesResponse> {
+  const qs = new URLSearchParams();
+  if (payload.review) qs.set("review", payload.review);
+  if (payload.page) qs.set("page", String(payload.page));
+  if (payload.pageSize) qs.set("pageSize", String(payload.pageSize));
+
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  const response = await apiFetch(
+    apiUrl,
+    `/routes/source-batches/${encodeURIComponent(payload.batchId)}/candidates${suffix}`,
+    {
+      headers: { Accept: "application/json" }
+    }
+  );
+
+  const data: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    if (typeof data === "object" && data != null) return data as RouteSourceBatchCandidatesResponse;
+    return {
+      ok: false,
+      error: "INTERNAL_ERROR",
+      message: `HTTP ${response.status} ao chamar /routes/source-batches/:id/candidates`
+    };
+  }
+
+  return data as RouteSourceBatchCandidatesResponse;
+}
+
+export async function createRouteDraft(apiUrl: string, payload: RouteCreateRequest): Promise<RouteCreateResponse> {
+  const response = await apiFetch(apiUrl, "/routes", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    if (typeof data === "object" && data != null) return data as RouteCreateResponse;
+    return { ok: false, error: "INTERNAL_ERROR", message: `HTTP ${response.status} ao chamar /routes` };
+  }
+
+  return data as RouteCreateResponse;
+}
+
+export async function importRouteGpx(
+  apiUrl: string,
+  payload: {
+    file: File;
+    sourceBatchId: string;
+    routeDate: string;
+    inspectorAccountCode: string;
+    assistantUserId?: string | null;
+    originCity?: string | null;
+    replaceExisting?: boolean;
+    replaceReason?: string | null;
+  }
+): Promise<RouteImportGpxResponse> {
+  const formData = new FormData();
+  formData.append("file", payload.file);
+  formData.append("sourceBatchId", payload.sourceBatchId);
+  formData.append("routeDate", payload.routeDate);
+  formData.append("inspectorAccountCode", payload.inspectorAccountCode);
+  if (payload.assistantUserId) formData.append("assistantUserId", payload.assistantUserId);
+  if (payload.originCity) formData.append("originCity", payload.originCity);
+  if (payload.replaceExisting) formData.append("replaceExisting", "true");
+  if (payload.replaceReason) formData.append("replaceReason", payload.replaceReason);
+
+  const response = await apiFetch(apiUrl, "/routes/import-gpx", {
+    method: "POST",
+    body: formData
+  });
+
+  const data: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    if (typeof data === "object" && data != null) return data as RouteImportGpxResponse;
+    return { ok: false, error: "INTERNAL_ERROR", message: `HTTP ${response.status} ao chamar /routes/import-gpx` };
+  }
+
+  return data as RouteImportGpxResponse;
+}
+
+export async function publishRouteById(apiUrl: string, routeId: string): Promise<RoutePublishResponse> {
+  const response = await apiFetch(apiUrl, `/routes/${encodeURIComponent(routeId)}/publish`, {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+
+  const data: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    if (typeof data === "object" && data != null) return data as RoutePublishResponse;
+    return {
+      ok: false,
+      error: "INTERNAL_ERROR",
+      message: `HTTP ${response.status} ao chamar /routes/:id/publish`
+    };
+  }
+
+  return data as RoutePublishResponse;
+}
+
+export async function fetchRouteById(apiUrl: string, routeId: string): Promise<RouteDetailResponse> {
+  const response = await apiFetch(apiUrl, `/routes/${encodeURIComponent(routeId)}`, {
+    headers: { Accept: "application/json" }
+  });
+
+  const data: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    if (typeof data === "object" && data != null) return data as RouteDetailResponse;
+    return {
+      ok: false,
+      error: "INTERNAL_ERROR",
+      message: `HTTP ${response.status} ao chamar /routes/:id`
+    };
+  }
+
+  return data as RouteDetailResponse;
+}
+
+export async function exportRouteGpxById(apiUrl: string, routeId: string): Promise<RouteExportGpxResponse> {
+  const response = await apiFetch(apiUrl, `/routes/${encodeURIComponent(routeId)}/export/gpx`, {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+
+  const data: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    if (typeof data === "object" && data != null) return data as RouteExportGpxResponse;
+    return {
+      ok: false,
+      error: "INTERNAL_ERROR",
+      message: `HTTP ${response.status} ao chamar /routes/:id/export/gpx`
+    };
+  }
+
+  return data as RouteExportGpxResponse;
+}
+
+export async function exportRouteEmailPreviewById(
+  apiUrl: string,
+  routeId: string
+): Promise<RouteExportEmailPreviewResponse> {
+  const response = await apiFetch(apiUrl, `/routes/${encodeURIComponent(routeId)}/export/email-preview`, {
+    method: "POST",
+    headers: { Accept: "application/json" }
+  });
+
+  const data: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    if (typeof data === "object" && data != null) return data as RouteExportEmailPreviewResponse;
+    return {
+      ok: false,
+      error: "INTERNAL_ERROR",
+      message: `HTTP ${response.status} ao chamar /routes/:id/export/email-preview`
+    };
+  }
+
+  return data as RouteExportEmailPreviewResponse;
 }
 
 export async function fetchClients(apiUrl: string): Promise<ClientsListResponse> {

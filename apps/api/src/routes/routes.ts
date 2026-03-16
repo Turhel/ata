@@ -17,11 +17,15 @@ import { createRoute } from "../modules/routes/create-route.js";
 import { exportRouteEmailPreview } from "../modules/routes/export-route-email-preview.js";
 import { exportRouteGpx } from "../modules/routes/export-route-gpx.js";
 import { geocodeRouteSourceBatch } from "../modules/routes/geocode-route-source-batch.js";
+import { getCurrentOperationalRoute } from "../modules/routes/get-current-operational-route.js";
+import { getRouteDayClose } from "../modules/routes/get-route-day-close.js";
 import { getRouteById } from "../modules/routes/get-route-by-id.js";
 import { importRouteFromGpx } from "../modules/routes/import-route-from-gpx.js";
 import { listRouteSourceBatchCandidates } from "../modules/routes/list-route-source-batch-candidates.js";
+import { listRouteDaySummaries } from "../modules/routes/list-route-day-summaries.js";
 import { listRoutes } from "../modules/routes/list-routes.js";
 import { publishRoute } from "../modules/routes/publish-route.js";
+import { upsertRouteDayClose } from "../modules/routes/upsert-route-day-close.js";
 
 export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
   async function requireAdminOrMaster(request: any) {
@@ -76,6 +80,219 @@ export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
           total: result.total
         })
       };
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.get("/routes/day-summary", async (request, reply) => {
+    try {
+      await requireAdminOrMaster(request);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const query = (request.query as Record<string, unknown> | undefined) ?? {};
+      const routeDate = typeof query.routeDate === "string" ? query.routeDate.trim() : "";
+      const inspectorAccountCode =
+        typeof query.inspectorAccountCode === "string" ? query.inspectorAccountCode.trim() : "";
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(routeDate)) {
+        reply.status(400);
+        return { ok: false, error: "BAD_REQUEST", message: "Parâmetro routeDate obrigatório (YYYY-MM-DD)" };
+      }
+
+      const result = await listRouteDaySummaries({
+        databaseUrl: env.databaseUrl,
+        routeDate,
+        inspectorAccountCode: inspectorAccountCode || undefined
+      });
+
+      return { ok: true, routeDate, ...result };
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.get("/routes/operational/current", async (request, reply) => {
+    try {
+      const authSession = await requireAuthenticated(env, request);
+      const operationalUser = await requireOperationalUser(env, authSession.user.id);
+      requireActiveUser(operationalUser);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const query = (request.query as Record<string, unknown> | undefined) ?? {};
+      const routeDate =
+        typeof query.routeDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(query.routeDate.trim())
+          ? query.routeDate.trim()
+          : new Date().toISOString().slice(0, 10);
+
+      const result = await getCurrentOperationalRoute({
+        databaseUrl: env.databaseUrl,
+        operationalUser,
+        routeDate
+      });
+
+      if (!result.ok) {
+        reply.status(result.error === "FORBIDDEN" ? 403 : 404);
+        return result;
+      }
+
+      return result;
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.get("/routes/:id/day-close", async (request, reply) => {
+    try {
+      const authSession = await requireAuthenticated(env, request);
+      const operationalUser = await requireOperationalUser(env, authSession.user.id);
+      requireActiveUser(operationalUser);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const routeId = String((request.params as any).id ?? "").trim();
+      if (!routeId) {
+        reply.status(400);
+        return { ok: false, error: "BAD_REQUEST", message: "routeId obrigatório" };
+      }
+
+      const result = await getRouteDayClose({
+        databaseUrl: env.databaseUrl,
+        routeId,
+        operationalUser
+      });
+
+      if (!result.ok) {
+        reply.status(result.error === "FORBIDDEN" ? 403 : 404);
+        return result;
+      }
+
+      return result;
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.post("/routes/:id/day-close", async (request, reply) => {
+    try {
+      const authSession = await requireAuthenticated(env, request);
+      const operationalUser = await requireOperationalUser(env, authSession.user.id);
+      requireActiveUser(operationalUser);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const routeId = String((request.params as any).id ?? "").trim();
+      if (!routeId) {
+        reply.status(400);
+        return { ok: false, error: "BAD_REQUEST", message: "routeId obrigatório" };
+      }
+
+      const body = ((request.body ?? {}) as Record<string, unknown>) ?? {};
+      const reportedOrderCodes = Array.isArray(body.reportedOrderCodes)
+        ? body.reportedOrderCodes.filter((item): item is string => typeof item === "string")
+        : [];
+      const routeComplete = body.routeComplete === true;
+      const stoppedAtSeq =
+        typeof body.stoppedAtSeq === "number" && Number.isInteger(body.stoppedAtSeq) ? body.stoppedAtSeq : null;
+      const skippedStops = Array.isArray(body.skippedStops)
+        ? body.skippedStops
+            .map((item) =>
+              typeof item === "object" && item != null
+                ? {
+                    seq: typeof (item as any).seq === "number" ? (item as any).seq : NaN,
+                    reason: String((item as any).reason ?? "")
+                  }
+                : null
+            )
+            .filter((item): item is { seq: number; reason: string } => item != null)
+        : [];
+      const notes =
+        typeof body.notes === "string" ? body.notes : body.notes == null ? null : String(body.notes ?? "");
+
+      const result = await upsertRouteDayClose({
+        databaseUrl: env.databaseUrl,
+        routeId,
+        operationalUser,
+        submittedByUserId: operationalUser.id,
+        reportedOrderCodes,
+        routeComplete,
+        stoppedAtSeq,
+        skippedStops,
+        notes
+      });
+
+      if (!result.ok) {
+        reply.status(
+          result.error === "FORBIDDEN"
+            ? 403
+            : result.error === "NOT_FOUND"
+              ? 404
+              : result.error === "INVALID_STATUS"
+                ? 409
+                : 422
+        );
+        return result;
+      }
+
+      return result;
     } catch (error) {
       if (error instanceof PermissionError) {
         reply.status(error.statusCode);

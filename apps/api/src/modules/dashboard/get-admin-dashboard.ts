@@ -3,6 +3,8 @@ import {
   orders,
   paymentBatches,
   poolImportBatches,
+  routeDayClosures,
+  routes,
   teamAssignments,
   users
 } from "../../db/schema.js";
@@ -10,6 +12,14 @@ import { getDb } from "../../lib/db.js";
 
 function toNumber(value: unknown) {
   return typeof value === "number" ? value : Number(value ?? 0);
+}
+
+function getTodayDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export async function getAdminDashboard(params: {
@@ -60,6 +70,16 @@ export async function getAdminDashboard(params: {
     })
     .from(poolImportBatches);
 
+  const todayDate = getTodayDateString();
+  const assignmentRows =
+    actorRole === "admin"
+      ? await db
+          .select({ assistantUserId: teamAssignments.assistantUserId })
+          .from(teamAssignments)
+          .where(and(eq(teamAssignments.adminUserId, actorUserId), eq(teamAssignments.isActive, true)))
+      : [];
+  const assistantIds = [...new Set(assignmentRows.map((row) => row.assistantUserId))];
+
   let team:
     | {
         assistants: number;
@@ -76,13 +96,6 @@ export async function getAdminDashboard(params: {
     | null = null;
 
   if (actorRole === "admin") {
-    const assignmentRows = await db
-      .select({ assistantUserId: teamAssignments.assistantUserId })
-      .from(teamAssignments)
-      .where(and(eq(teamAssignments.adminUserId, actorUserId), eq(teamAssignments.isActive, true)));
-
-    const assistantIds = [...new Set(assignmentRows.map((row) => row.assistantUserId))];
-
     if (assistantIds.length > 0) {
       const [teamOrdersRow] = await db
         .select({
@@ -142,6 +155,56 @@ export async function getAdminDashboard(params: {
     }
   }
 
+  const routeConditions = [eq(routes.routeDate, todayDate)];
+  if (actorRole === "admin") {
+    if (assistantIds.length === 0) {
+      routeConditions.push(sql`1 = 0`);
+    } else {
+      routeConditions.push(inArray(routes.assistantUserId, assistantIds));
+    }
+  }
+
+  const routeRows = await db
+    .select({
+      routeId: routes.id,
+      routeComplete: routeDayClosures.routeComplete,
+      plannedDone: routeDayClosures.plannedDone,
+      plannedNotDone: routeDayClosures.plannedNotDone,
+      doneNotPlanned: routeDayClosures.doneNotPlanned
+    })
+    .from(routes)
+    .leftJoin(routeDayClosures, eq(routeDayClosures.routeId, routes.id))
+    .where(and(...routeConditions));
+
+  const routeMetrics = routeRows.reduce(
+    (acc, row) => {
+      const plannedDoneCount = Array.isArray(row.plannedDone) ? row.plannedDone.length : 0;
+      const plannedNotDoneCount = Array.isArray(row.plannedNotDone) ? row.plannedNotDone.length : 0;
+      const doneNotPlannedCount = Array.isArray(row.doneNotPlanned) ? row.doneNotPlanned.length : 0;
+
+      acc.total += 1;
+      if (row.plannedDone != null || row.plannedNotDone != null || row.doneNotPlanned != null) {
+        acc.closed += 1;
+      }
+      if (row.routeComplete) {
+        acc.complete += 1;
+      }
+      acc.plannedDone += plannedDoneCount;
+      acc.plannedNotDone += plannedNotDoneCount;
+      acc.doneNotPlanned += doneNotPlannedCount;
+      return acc;
+    },
+    {
+      date: todayDate,
+      total: 0,
+      closed: 0,
+      complete: 0,
+      plannedDone: 0,
+      plannedNotDone: 0,
+      doneNotPlanned: 0
+    }
+  );
+
   return {
     scope: actorRole === "master" ? "global" : "team",
     users: {
@@ -172,6 +235,7 @@ export async function getAdminDashboard(params: {
       partiallyCompleted: toNumber(importsRow?.partiallyCompleted),
       failed: toNumber(importsRow?.failed)
     },
+    routes: routeMetrics,
     team
   };
 }

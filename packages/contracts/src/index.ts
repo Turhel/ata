@@ -337,6 +337,140 @@ export type RoutesListResponse =
       message: string;
     };
 
+export type RouteSourceBatchUploadResponse =
+  | {
+      ok: true;
+      batch: {
+        batchId: string;
+        routeDate: string;
+        fileName: string;
+        totalRows: number;
+        inspectorAccountCodes: string[];
+      };
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type RouteCreateRequest = {
+  sourceBatchId: string;
+  routeDate: string;
+  inspectorAccountCode: string;
+  assistantUserId?: string | null;
+  originCity?: string | null;
+  replaceExisting?: boolean;
+  replaceReason?: string | null;
+};
+
+export type RouteCreateResponse =
+  | {
+      ok: true;
+      routeId: string;
+      status: "draft" | "published" | "superseded" | "cancelled";
+      version: number;
+      totalStops: number;
+      originCity: string | null;
+      optimizationMode: "heuristic_city_zip" | "heuristic_geo_city_zip";
+      alerts: {
+        reviewRequiredCount: number;
+        approximateCount: number;
+        notFoundCount: number;
+        pendingCount: number;
+      };
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "NOT_FOUND" | "INVALID_STATUS" | "INTERNAL_ERROR";
+      message: string;
+      details?: ApiErrorDetails;
+    };
+
+export type RoutePublishResponse =
+  | {
+      ok: true;
+      routeId: string;
+      status: "published";
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_STATUS" | "INTERNAL_ERROR";
+      message: string;
+      details?: ApiErrorDetails;
+    };
+
+export type RouteDetailResponse =
+  | {
+      ok: true;
+      route: {
+        id: string;
+        routeDate: string;
+        sourceBatchId: string;
+        inspectorAccountId: string;
+        inspectorId: string | null;
+        assistantUserId: string | null;
+        originCity: string | null;
+        optimizationMode: string;
+        alerts: {
+          reviewRequiredCount: number;
+          approximateCount: number;
+          notFoundCount: number;
+          pendingCount: number;
+        };
+        status: "draft" | "published" | "superseded" | "cancelled";
+        version: number;
+        publishedAt: string | null;
+        createdAt: string;
+        updatedAt: string;
+      };
+      stops: Array<{
+        id: string;
+        seq: number;
+        candidateId: string | null;
+        orderId: string | null;
+        routeCategory: string;
+        stopStatus: string;
+        residentName: string | null;
+        addressLine1: string | null;
+        addressLine2: string | null;
+        city: string | null;
+        state: string | null;
+        zipCode: string | null;
+        normalizedAddressLine1: string | null;
+        normalizedCity: string | null;
+        normalizedState: string | null;
+        normalizedZipCode: string | null;
+        latitude: string | null;
+        longitude: string | null;
+        geocodeStatus: string;
+        geocodeQuality: string | null;
+        geocodeSource: string | null;
+        geocodeReviewRequired: boolean;
+        geocodeReviewReason: string | null;
+        geocodedAt: string | null;
+        dueDate: string | null;
+        createdAt: string;
+        updatedAt: string;
+      }>;
+      events: Array<{
+        id: string;
+        eventType: string;
+        fromStatus: string | null;
+        toStatus: string | null;
+        performedByUserId: string;
+        reason: string | null;
+        metadata: unknown;
+        createdAt: string;
+      }>;
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INTERNAL_ERROR";
+      message: string;
+      details?: ApiErrorDetails;
+    };
+
 export type RouteSourceBatchGeocodeResponse =
   | {
       ok: true;
@@ -447,6 +581,167 @@ export type RouteExportEmailPreviewResponse =
       error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_STATUS" | "BAD_REQUEST" | "INTERNAL_ERROR";
       message: string;
       details?: ApiErrorDetails;
+    };
+
+export type OperationalRouteStopItem = {
+  id: string;
+  seq: number;
+  externalOrderCode: string | null;
+  routeCategory: string;
+  stopStatus: string;
+  residentName: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
+  latitude: string | null;
+  longitude: string | null;
+  geocodeReviewRequired: boolean;
+};
+
+export type OperationalRouteCurrentResponse =
+  | {
+      ok: true;
+      route: {
+        id: string;
+        routeDate: string;
+        status: string;
+        originCity: string | null;
+        inspectorAccountCode: string;
+        inspectorId: string | null;
+        assistantUserId: string | null;
+        stopCount: number;
+        pendingStops: number;
+        reviewStops: number;
+      };
+      stops: OperationalRouteStopItem[];
+      viewer: {
+        role: "assistant" | "inspector";
+        userId: string;
+        inspectorId: string | null;
+      };
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type RouteDayCloseItem = {
+  seq: number;
+  stopId: string | null;
+  orderId: string | null;
+  externalOrderCode: string | null;
+  residentName: string | null;
+  addressLine1: string | null;
+  city: string | null;
+  state: string | null;
+  reason?: string | null;
+};
+
+export type RouteDayCloseReport = {
+  id: string;
+  routeId: string;
+  routeDate: string;
+  assistantUserId: string | null;
+  inspectorId: string | null;
+  submittedByUserId: string;
+  routeComplete: boolean;
+  stoppedAtSeq: number | null;
+  notes: string | null;
+  reportedOrderCodes: string[];
+  skippedStops: RouteDayCloseItem[];
+  plannedDone: RouteDayCloseItem[];
+  plannedNotDone: RouteDayCloseItem[];
+  doneNotPlanned: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RouteDayCloseGetResponse =
+  | {
+      ok: true;
+      route: {
+        id: string;
+        routeDate: string;
+        status: string;
+        assistantUserId: string | null;
+        inspectorId: string | null;
+      };
+      report: RouteDayCloseReport | null;
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "BAD_REQUEST" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type RouteDayCloseUpsertRequest = {
+  reportedOrderCodes: string[];
+  routeComplete?: boolean;
+  stoppedAtSeq?: number | null;
+  skippedStops?: Array<{
+    seq: number;
+    reason: string;
+  }>;
+  notes?: string | null;
+};
+
+export type RouteDayCloseUpsertResponse =
+  | {
+      ok: true;
+      route: {
+        id: string;
+        routeDate: string;
+      };
+      report: RouteDayCloseReport;
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_STATUS" | "VALIDATION_ERROR" | "INTERNAL_ERROR";
+      message: string;
+      details?: ApiErrorDetails;
+    };
+
+export type RouteDaySummaryItem = {
+  routeId: string;
+  routeDate: string;
+  routeStatus: string;
+  inspectorAccountCode: string;
+  assistantUserId: string | null;
+  inspectorId: string | null;
+  stopCount: number;
+  hasDayClose: boolean;
+  routeComplete: boolean;
+  stoppedAtSeq: number | null;
+  reportedOrderCodesCount: number;
+  plannedDoneCount: number;
+  plannedNotDoneCount: number;
+  doneNotPlannedCount: number;
+  notes: string | null;
+  updatedAt: string | null;
+};
+
+export type RouteDaySummaryResponse =
+  | {
+      ok: true;
+      routeDate: string;
+      summaries: RouteDaySummaryItem[];
+      totals: {
+        routes: number;
+        stopCount: number;
+        closedRoutes: number;
+        completeRoutes: number;
+        plannedDoneCount: number;
+        plannedNotDoneCount: number;
+        doneNotPlannedCount: number;
+      };
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "INTERNAL_ERROR";
+      message: string;
     };
 
 export type InspectorAccountItem = {
@@ -859,6 +1154,15 @@ export type AdminDashboardResponse =
           completed: number;
           partiallyCompleted: number;
           failed: number;
+        };
+        routes: {
+          date: string;
+          total: number;
+          closed: number;
+          complete: number;
+          plannedDone: number;
+          plannedNotDone: number;
+          doneNotPlanned: number;
         };
         team: {
           assistants: number;

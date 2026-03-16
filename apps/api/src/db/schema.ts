@@ -101,7 +101,8 @@ export const routeEventTypeEnum = pgEnum("route_event_type", [
   "cancelled",
   "reordered",
   "imported_gpx",
-  "export_generated"
+  "export_generated",
+  "day_closed"
 ]);
 
 export const routeStopStatusEnum = pgEnum("route_stop_status", [
@@ -703,4 +704,36 @@ export const routeEvents = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow()
   },
   (t) => [index("route_events_route_id_idx").on(t.routeId), index("route_events_created_at_idx").on(t.createdAt)]
+);
+
+export const routeDayClosures = pgTable(
+  "route_day_closures",
+  {
+    id: uuid("id").primaryKey().notNull(),
+    routeId: uuid("route_id")
+      .notNull()
+      .references(() => routes.id),
+    routeDate: date("route_date").notNull(),
+    assistantUserId: uuid("assistant_user_id").references(() => users.id),
+    inspectorId: uuid("inspector_id").references(() => inspectors.id),
+    submittedByUserId: uuid("submitted_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    routeComplete: boolean("route_complete").notNull().default(false),
+    stoppedAtSeq: integer("stopped_at_seq"),
+    notes: text("notes"),
+    reportedOrderCodes: jsonb("reported_order_codes").notNull().default(sql`'[]'::jsonb`),
+    skippedStops: jsonb("skipped_stops").notNull().default(sql`'[]'::jsonb`),
+    plannedDone: jsonb("planned_done").notNull().default(sql`'[]'::jsonb`),
+    plannedNotDone: jsonb("planned_not_done").notNull().default(sql`'[]'::jsonb`),
+    doneNotPlanned: jsonb("done_not_planned").notNull().default(sql`'[]'::jsonb`),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow()
+  },
+  (t) => [
+    uniqueIndex("route_day_closures_route_id_idx").on(t.routeId),
+    index("route_day_closures_route_date_idx").on(t.routeDate),
+    index("route_day_closures_assistant_user_id_idx").on(t.assistantUserId),
+    index("route_day_closures_inspector_id_idx").on(t.inspectorId)
+  ]
 );

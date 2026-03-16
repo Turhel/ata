@@ -80,7 +80,7 @@ export function Dashboard() {
     );
   }
 
-  const { orders, users, imports } = metrics;
+  const { orders, users, imports, routes } = metrics;
   const totalOrders = Math.max(
     orders.available + orders.inProgress + orders.submitted + orders.approved,
     1
@@ -216,6 +216,49 @@ export function Dashboard() {
               <p className="text-xs text-muted-foreground text-center bg-muted/30 px-3 py-1.5 rounded-full border border-border/40 inline-block w-full text-center">
                 Total processado: {imports.completed + imports.partiallyCompleted + imports.failed + imports.processing} lotes
               </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="border-border/50 shadow-sm card-interactive">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Activity className="h-4 w-4 text-primary" />
+              Fechamento de Rotas
+            </CardTitle>
+            <CardDescription>Resumo operacional do dia {routes.date}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Rotas</div>
+                <div className="mt-1 text-2xl font-bold text-foreground">{routes.total}</div>
+              </div>
+              <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Fechadas</div>
+                <div className="mt-1 text-2xl font-bold text-foreground">{routes.closed}</div>
+              </div>
+              <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Completas</div>
+                <div className="mt-1 text-2xl font-bold text-emerald-600">{routes.complete}</div>
+              </div>
+              <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Pontos feitos</div>
+                <div className="mt-1 text-2xl font-bold text-sky-600">{routes.plannedDone}</div>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Faltantes da rota</span>
+                <span className="font-semibold text-amber-600">{routes.plannedNotDone}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Executadas fora da rota</span>
+                <span className="font-semibold text-rose-600">{routes.doneNotPlanned}</span>
+              </div>
             </div>
           </CardContent>
         </Card>
