@@ -1,5 +1,15 @@
-﻿export type HealthResponse = {
+export type HealthResponse = {
   ok: true;
+  app?: {
+    env: string;
+    uptimeSeconds: number;
+    timestamp: string;
+  };
+  services?: {
+    betterAuth: { configured: boolean };
+    nominatim: { configured: boolean };
+    routingEngine: { configured: boolean };
+  };
   db?: { ok: boolean; error?: string };
 };
 
@@ -372,7 +382,7 @@ export type RouteCreateResponse =
       version: number;
       totalStops: number;
       originCity: string | null;
-      optimizationMode: "heuristic_city_zip" | "heuristic_geo_city_zip";
+      optimizationMode: "heuristic_city_zip" | "heuristic_geo_city_zip" | "matrix_osrm";
       alerts: {
         reviewRequiredCount: number;
         approximateCount: number;
@@ -526,6 +536,40 @@ export type RouteSourceBatchCandidatesResponse =
       message: string;
     };
 
+export type RouteCandidateGeocodeOverrideRequest = {
+  latitude: string | number;
+  longitude: string | number;
+  normalizedAddressLine1?: string | null;
+  normalizedCity?: string | null;
+  normalizedState?: string | null;
+  normalizedZipCode?: string | null;
+  note?: string | null;
+};
+
+export type RouteCandidateGeocodeOverrideResponse =
+  | {
+      ok: true;
+      candidate: {
+        id: string;
+        sourceBatchId: string;
+        latitude: string;
+        longitude: string;
+        geocodeStatus: "resolved";
+        geocodeQuality: "manual";
+        geocodeSource: "manual";
+        geocodeReviewRequired: false;
+        geocodeReviewReason: null;
+      };
+      syncedRoutes: number;
+      syncedStops: number;
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "NOT_FOUND" | "INTERNAL_ERROR";
+      message: string;
+      details?: ApiErrorDetails;
+    };
+
 export type RouteImportGpxResponse =
   | {
       ok: true;
@@ -551,9 +595,48 @@ export type RouteImportGpxResponse =
       details?: ApiErrorDetails;
     };
 
+export type RouteAssistantAssignmentRequest = {
+  assistantUserId: string | null;
+  reason?: string | null;
+};
+
+export type RouteAssistantAssignmentResponse =
+  | {
+      ok: true;
+      routeId: string;
+      assistantUserId: string | null;
+      updatedAt: string;
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "NOT_FOUND" | "INVALID_STATUS" | "INTERNAL_ERROR";
+      message: string;
+      details?: ApiErrorDetails;
+    };
+
+export type RouteResequenceRequest = {
+  stopIds: string[];
+  reason?: string | null;
+};
+
+export type RouteResequenceResponse =
+  | {
+      ok: true;
+      routeId: string;
+      totalStops: number;
+      updatedAt: string;
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "NOT_FOUND" | "INVALID_STATUS" | "INTERNAL_ERROR";
+      message: string;
+      details?: ApiErrorDetails;
+    };
+
 export type RouteExportGpxResponse =
   | {
       ok: true;
+      profile: "inroute_legacy" | "generic_gpx";
       fileName: string;
       contentType: "application/gpx+xml";
       content: string;
@@ -737,6 +820,55 @@ export type RouteDaySummaryResponse =
         plannedNotDoneCount: number;
         doneNotPlannedCount: number;
       };
+    }
+  | {
+      ok: false;
+      error: "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "INTERNAL_ERROR";
+      message: string;
+    };
+
+export type RouteHistorySummaryItem = {
+  routeId: string;
+  routeDate: string;
+  routeStatus: string;
+  inspectorAccountCode: string;
+  assistantUserId: string | null;
+  stopCount: number;
+  hasDayClose: boolean;
+  routeComplete: boolean;
+  plannedDoneCount: number;
+  plannedNotDoneCount: number;
+  doneNotPlannedCount: number;
+};
+
+export type RouteHistorySummaryBucket = {
+  routes: number;
+  closedRoutes: number;
+  completeRoutes: number;
+  plannedDoneCount: number;
+  plannedNotDoneCount: number;
+  doneNotPlannedCount: number;
+};
+
+export type RouteHistorySummaryResponse =
+  | {
+      ok: true;
+      dateFrom: string;
+      dateTo: string;
+      summaries: RouteHistorySummaryItem[];
+      totals: RouteHistorySummaryBucket & {
+        stopCount: number;
+      };
+      byAssistant: Array<
+        RouteHistorySummaryBucket & {
+          assistantUserId: string | null;
+        }
+      >;
+      byInspectorAccount: Array<
+        RouteHistorySummaryBucket & {
+          inspectorAccountCode: string;
+        }
+      >;
     }
   | {
       ok: false;
@@ -1449,3 +1581,4 @@ export type OrderReturnToPoolResponse =
       message: string;
       details?: ApiErrorDetails;
     };
+

@@ -35,6 +35,7 @@ export type RouteExportData =
         latitude: string | null;
         longitude: string | null;
         geocodeReviewRequired: boolean;
+        geocodeQuality: string | null;
       }>;
     }
   | { ok: false; error: "NOT_FOUND" | "INVALID_STATUS"; message: string };
@@ -92,7 +93,8 @@ export async function getRouteExportData(params: {
       zipCode: routeStops.zipCode,
       latitude: routeStops.latitude,
       longitude: routeStops.longitude,
-      geocodeReviewRequired: routeStops.geocodeReviewRequired
+      geocodeReviewRequired: routeStops.geocodeReviewRequired,
+      geocodeQuality: routeStops.geocodeQuality
     })
     .from(routeStops)
     .where(eq(routeStops.routeId, params.routeId))

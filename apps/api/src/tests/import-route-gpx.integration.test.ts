@@ -73,7 +73,7 @@ function buildTestEnv(): ApiEnv {
     host: "127.0.0.1",
     port: 3001,
     appEnv: "development",
-    appWebUrl,
+    logLevel: "fatal",    appWebUrl,
     betterAuthSecret,
     betterAuthUrl,
     databaseUrl
@@ -357,3 +357,4 @@ integration("routes gpx: importa sequência externa e marca stops sem match para
     .from(routeEvents);
   assert.ok(importedEvents.some((event) => event.eventType === "imported_gpx" && event.reason === "route.gpx"));
 });
+

@@ -25,7 +25,7 @@ export type CreateRouteResult =
       version: number;
       totalStops: number;
       originCity: string | null;
-      optimizationMode: "heuristic_city_zip" | "heuristic_geo_city_zip";
+      optimizationMode: "heuristic_city_zip" | "heuristic_geo_city_zip" | "matrix_osrm";
       alerts: {
         reviewRequiredCount: number;
         approximateCount: number;
@@ -52,6 +52,7 @@ export async function createRoute(params: {
   inspectorAccountCode: string;
   assistantUserId: string | null;
   originCityOverride?: string | null;
+  routingEngineBaseUrl?: string | null;
   replaceExisting: boolean;
   replaceReason: string | null;
 }): Promise<CreateRouteResult> {
@@ -210,10 +211,11 @@ export async function createRoute(params: {
     return { ok: false, error: "BAD_REQUEST", message: "Nenhuma linha elegível encontrada para esta conta" };
   }
 
-  const optimized = optimizeRouteStops({
+  const optimized = await optimizeRouteStops({
     candidates: nonCancelledCandidates,
     routeDate: params.routeDate,
-    originCity
+    originCity,
+    routingEngineBaseUrl: params.routingEngineBaseUrl
   });
 
   const alerts = nonCancelledCandidates.reduce(

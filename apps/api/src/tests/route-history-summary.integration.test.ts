@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
-import { eq } from "drizzle-orm";
 import * as XLSX from "xlsx";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../app.js";
-import { inspectorAccounts, inspectors, routeStops, users, userRoles } from "../db/schema.js";
+import { inspectorAccounts, inspectors, users, userRoles } from "../db/schema.js";
 import type { ApiEnv } from "../env.js";
 import { getDb } from "../lib/db.js";
 
@@ -67,13 +66,7 @@ async function createTestApp() {
   return { app, db };
 }
 
-async function createUserWithRole(
-  app: FastifyInstance,
-  db: Database,
-  label: string,
-  roleCode: "admin" | "assistant" | "inspector",
-  extra?: { inspectorId?: string }
-) {
+async function createUserWithRole(app: FastifyInstance, db: Database, label: string, roleCode: "admin" | "assistant") {
   const session = await signUpAndGetSession(app, label);
   const userId = randomUUID();
   await db.insert(users).values({
@@ -81,8 +74,7 @@ async function createUserWithRole(
     email: session.email,
     fullName: `${roleCode} ${label}`,
     status: "active",
-    authUserId: session.authUserId,
-    inspectorId: extra?.inspectorId ?? null
+    authUserId: session.authUserId
   });
   await db.insert(userRoles).values({
     id: randomUUID(),
@@ -107,34 +99,16 @@ function buildMultipartFilePayload(params: { fieldName: string; fileName: string
   return { body, boundary };
 }
 
-function buildWorkbook(inspectorAccountCode: string) {
+function buildWorkbook(inspectorAccountCode: string, orderCode: string) {
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.json_to_sheet([
     {
       STATUS: "Assigned",
-      WORDER: "ROUTE-CLOSE-001",
+      WORDER: orderCode,
       INSPECTOR: inspectorAccountCode,
       CLIENT: "CLIENT_X",
       NAME: "Resident One",
       ADDRESS1: "100 Main St",
-      CITY: "Hinesville",
-      STATE: "GA",
-      ZIP: "31313",
-      OTYPE: "E3RNN",
-      DUEDATE: "03/10/2026",
-      "START DATE": "03/10/2026",
-      WINDOW: "N",
-      RUSH: "N",
-      FOLLOWUP: "N",
-      VACANT: "N"
-    },
-    {
-      STATUS: "Assigned",
-      WORDER: "ROUTE-CLOSE-002",
-      INSPECTOR: inspectorAccountCode,
-      CLIENT: "CLIENT_X",
-      NAME: "Resident Two",
-      ADDRESS1: "200 Main St",
       CITY: "Hinesville",
       STATE: "GA",
       ZIP: "31313",
@@ -151,42 +125,27 @@ function buildWorkbook(inspectorAccountCode: string) {
   return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
 }
 
-integration("routes day close: assistant fecha o dia e inspector/admin consultam o resumo", async (t) => {
-  const { app, db } = await createTestApp();
-  t.after(async () => {
-    await app.close();
-  });
-
-  const admin = await createUserWithRole(app, db, "route-close-admin", "admin");
-  const inspectorId = randomUUID();
-  await db.insert(inspectors).values({
-    id: inspectorId,
-    fullName: "Inspector Close",
-    departureCity: "Hinesville",
-    status: "active"
-  });
-  const assistant = await createUserWithRole(app, db, "route-close-assistant", "assistant");
-  const inspectorUser = await createUserWithRole(app, db, "route-close-inspector", "inspector", { inspectorId });
-
-  await db.insert(inspectorAccounts).values({
-    id: randomUUID(),
-    accountCode: "ATACLOSE04",
-    accountType: "field",
-    currentInspectorId: inspectorId,
-    isActive: true
-  });
-
+async function createRouteForDate(params: {
+  app: FastifyInstance;
+  adminCookie: string;
+  inspectorAccountCode: string;
+  routeDate: string;
+  assistantUserId: string;
+  orderCode: string;
+  routeComplete: boolean;
+}) {
   const multipart = buildMultipartFilePayload({
     fieldName: "file",
-    fileName: "route-close.xlsx",
+    fileName: `route-${params.routeDate}.xlsx`,
     contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    buffer: buildWorkbook("ATACLOSE04")
+    buffer: buildWorkbook(params.inspectorAccountCode, params.orderCode)
   });
-  const batchResponse = await app.inject({
+
+  const batchResponse = await params.app.inject({
     method: "POST",
-    url: "/routes/source-batches/xlsx?routeDate=2026-03-10",
+    url: `/routes/source-batches/xlsx?routeDate=${params.routeDate}`,
     headers: {
-      cookie: admin.cookieHeader,
+      cookie: params.adminCookie,
       origin: appWebUrl,
       host: "localhost:3001",
       "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
@@ -197,107 +156,124 @@ integration("routes day close: assistant fecha o dia e inspector/admin consultam
   assert.equal(batchResponse.statusCode, 200);
   const batchBody = batchResponse.json() as { ok: true; batch: { batchId: string } };
 
-  const createRouteResponse = await app.inject({
+  const createRouteResponse = await params.app.inject({
     method: "POST",
     url: "/routes",
     headers: {
-      cookie: admin.cookieHeader,
+      cookie: params.adminCookie,
       origin: appWebUrl,
       host: "localhost:3001",
       "content-type": "application/json"
     },
     payload: {
       sourceBatchId: batchBody.batch.batchId,
-      routeDate: "2026-03-10",
-      inspectorAccountCode: "ATACLOSE04",
-      assistantUserId: assistant.userId
+      routeDate: params.routeDate,
+      inspectorAccountCode: params.inspectorAccountCode,
+      assistantUserId: params.assistantUserId
     }
   });
   assert.equal(createRouteResponse.statusCode, 200);
   const createRouteBody = createRouteResponse.json() as { ok: true; routeId: string };
 
-  const publishResponse = await app.inject({
+  await params.app.inject({
     method: "POST",
     url: `/routes/${createRouteBody.routeId}/publish`,
-    headers: { cookie: admin.cookieHeader, origin: appWebUrl, host: "localhost:3001" }
+    headers: { cookie: params.adminCookie, origin: appWebUrl, host: "localhost:3001" }
   });
-  assert.equal(publishResponse.statusCode, 200);
 
-  const dayCloseResponse = await app.inject({
+  await params.app.inject({
     method: "POST",
     url: `/routes/${createRouteBody.routeId}/day-close`,
     headers: {
-      cookie: assistant.cookieHeader,
+      cookie: params.adminCookie,
       origin: appWebUrl,
       host: "localhost:3001",
       "content-type": "application/json"
     },
     payload: {
-      reportedOrderCodes: ["ROUTE-CLOSE-001", "ROUTE-EXTRA-999"],
-      routeComplete: false,
-      stoppedAtSeq: 1,
-      skippedStops: [{ seq: 2, reason: "Ponto ficou para trás no fim do dia" }],
-      notes: "Relatório do assistant"
+      reportedOrderCodes: [params.orderCode],
+      routeComplete: params.routeComplete,
+      notes: params.routeComplete ? "Completa" : "Parcial"
     }
   });
-  assert.equal(dayCloseResponse.statusCode, 200);
-  const dayCloseBody = dayCloseResponse.json() as {
-    ok: true;
-    report: {
-      routeComplete: boolean;
-      plannedDone: Array<{ externalOrderCode: string | null }>;
-      plannedNotDone: Array<{ seq: number; reason?: string | null }>;
-      doneNotPlanned: string[];
-      stoppedAtSeq: number | null;
-    };
-  };
-  assert.equal(dayCloseBody.report.routeComplete, false);
-  assert.deepEqual(dayCloseBody.report.plannedDone.map((item) => item.externalOrderCode), ["ROUTE-CLOSE-001"]);
-  assert.equal(dayCloseBody.report.plannedNotDone.length, 1);
-  assert.equal(dayCloseBody.report.plannedNotDone[0]?.seq, 2);
-  assert.equal(dayCloseBody.report.plannedNotDone[0]?.reason, "Ponto ficou para trás no fim do dia");
-  assert.deepEqual(dayCloseBody.report.doneNotPlanned, ["ROUTE-EXTRA-999"]);
-  assert.equal(dayCloseBody.report.stoppedAtSeq, 1);
+}
 
-  const stopRows = await db
-    .select({ seq: routeStops.seq, stopStatus: routeStops.stopStatus })
-    .from(routeStops)
-    .where(eq(routeStops.routeId, createRouteBody.routeId))
-    .orderBy(routeStops.seq);
-  assert.deepEqual(
-    stopRows.map((row) => ({ seq: row.seq, stopStatus: row.stopStatus })),
-    [
-      { seq: 1, stopStatus: "done" },
-      { seq: 2, stopStatus: "skipped" }
-    ]
-  );
-
-  const inspectorReadResponse = await app.inject({
-    method: "GET",
-    url: `/routes/${createRouteBody.routeId}/day-close`,
-    headers: { cookie: inspectorUser.cookieHeader, origin: appWebUrl, host: "localhost:3001" }
+integration("routes history summary: admin vê período consolidado e assistant não acessa", async (t) => {
+  const { app, db } = await createTestApp();
+  t.after(async () => {
+    await app.close();
   });
-  assert.equal(inspectorReadResponse.statusCode, 200);
-  const inspectorReadBody = inspectorReadResponse.json() as {
-    ok: true;
-    report: { doneNotPlanned: string[] } | null;
-  };
-  assert.ok(inspectorReadBody.report);
-  assert.deepEqual(inspectorReadBody.report.doneNotPlanned, ["ROUTE-EXTRA-999"]);
 
-  const adminReadResponse = await app.inject({
+  const admin = await createUserWithRole(app, db, "route-history-admin", "admin");
+  const assistant = await createUserWithRole(app, db, "route-history-assistant", "assistant");
+  const inspectorId = randomUUID();
+  await db.insert(inspectors).values({
+    id: inspectorId,
+    fullName: "Inspector History",
+    departureCity: "Hinesville",
+    status: "active"
+  });
+  await db.insert(inspectorAccounts).values({
+    id: randomUUID(),
+    accountCode: "ATAHIST01",
+    accountType: "field",
+    currentInspectorId: inspectorId,
+    isActive: true
+  });
+
+  await createRouteForDate({
+    app,
+    adminCookie: admin.cookieHeader,
+    inspectorAccountCode: "ATAHIST01",
+    routeDate: "2026-03-10",
+    assistantUserId: assistant.userId,
+    orderCode: "ROUTE-HIST-001",
+    routeComplete: true
+  });
+
+  await createRouteForDate({
+    app,
+    adminCookie: admin.cookieHeader,
+    inspectorAccountCode: "ATAHIST01",
+    routeDate: "2026-03-11",
+    assistantUserId: assistant.userId,
+    orderCode: "ROUTE-HIST-002",
+    routeComplete: false
+  });
+
+  const summaryResponse = await app.inject({
     method: "GET",
-    url: `/routes/${createRouteBody.routeId}/day-close`,
+    url: `/routes/history-summary?dateFrom=2026-03-10&dateTo=2026-03-11&assistantUserId=${assistant.userId}`,
     headers: { cookie: admin.cookieHeader, origin: appWebUrl, host: "localhost:3001" }
   });
-  assert.equal(adminReadResponse.statusCode, 200);
 
-  const outsider = await createUserWithRole(app, db, "route-close-outsider", "assistant");
-  const outsiderResponse = await app.inject({
+  assert.equal(summaryResponse.statusCode, 200);
+  const summaryBody = summaryResponse.json() as {
+    ok: true;
+    totals: { routes: number; closedRoutes: number; completeRoutes: number; plannedDoneCount: number };
+    summaries: Array<{ routeDate: string; inspectorAccountCode: string; routeComplete: boolean }>;
+    byAssistant: Array<{ assistantUserId: string | null; routes: number; completeRoutes: number }>;
+    byInspectorAccount: Array<{ inspectorAccountCode: string; routes: number; closedRoutes: number }>;
+  };
+
+  assert.equal(summaryBody.totals.routes, 2);
+  assert.equal(summaryBody.totals.closedRoutes, 2);
+  assert.equal(summaryBody.totals.completeRoutes, 1);
+  assert.equal(summaryBody.totals.plannedDoneCount, 2);
+  assert.equal(summaryBody.summaries.length, 2);
+  assert.equal(summaryBody.summaries[0]?.inspectorAccountCode, "ATAHIST01");
+  assert.equal(summaryBody.byAssistant[0]?.assistantUserId, assistant.userId);
+  assert.equal(summaryBody.byAssistant[0]?.routes, 2);
+  assert.equal(summaryBody.byAssistant[0]?.completeRoutes, 1);
+  assert.equal(summaryBody.byInspectorAccount[0]?.inspectorAccountCode, "ATAHIST01");
+  assert.equal(summaryBody.byInspectorAccount[0]?.routes, 2);
+  assert.equal(summaryBody.byInspectorAccount[0]?.closedRoutes, 2);
+
+  const assistantResponse = await app.inject({
     method: "GET",
-    url: `/routes/${createRouteBody.routeId}/day-close`,
-    headers: { cookie: outsider.cookieHeader, origin: appWebUrl, host: "localhost:3001" }
+    url: "/routes/history-summary?dateFrom=2026-03-10&dateTo=2026-03-11",
+    headers: { cookie: assistant.cookieHeader, origin: appWebUrl, host: "localhost:3001" }
   });
-  assert.equal(outsiderResponse.statusCode, 403);
+  assert.equal(assistantResponse.statusCode, 403);
 });
 

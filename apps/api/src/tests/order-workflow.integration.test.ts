@@ -24,7 +24,7 @@ function buildTestEnv(): ApiEnv {
     host: "127.0.0.1",
     port: 3001,
     appEnv: "development",
-    appWebUrl,
+    logLevel: "fatal",    appWebUrl,
     betterAuthSecret,
     betterAuthUrl,
     databaseUrl
@@ -493,3 +493,4 @@ integration("workflow: admin rejeita, devolve ao pool e aprova order submetida v
   const approvedEvents = await listEventsForOrder(db, approvedOrderId);
   assert.ok(approvedEvents.some((event) => event.eventType === "approved"));
 });
+

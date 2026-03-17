@@ -100,6 +100,8 @@ export const routeEventTypeEnum = pgEnum("route_event_type", [
   "superseded",
   "cancelled",
   "reordered",
+  "assistant_reassigned",
+  "geocode_overridden",
   "imported_gpx",
   "export_generated",
   "day_closed"

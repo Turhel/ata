@@ -41,7 +41,7 @@ function buildTestEnv(): ApiEnv {
     host: "127.0.0.1",
     port: 3001,
     appEnv: "development",
-    appWebUrl,
+    logLevel: "fatal",    appWebUrl,
     betterAuthSecret,
     betterAuthUrl,
     databaseUrl
@@ -620,3 +620,4 @@ integration("pool import: aceita upload do XLSX real de teste", async (t) => {
   assert.equal(body.batch.counters.ignoredRows, 0);
   assert.equal(body.batch.counters.errorRows, 0);
 });
+

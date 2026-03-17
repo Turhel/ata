@@ -52,7 +52,7 @@ function buildTestEnv(): ApiEnv {
     host: "127.0.0.1",
     port: 3001,
     appEnv: "development",
-    appWebUrl,
+    logLevel: "fatal",    appWebUrl,
     betterAuthSecret,
     betterAuthUrl,
     databaseUrl
@@ -233,3 +233,4 @@ integration("routes operational: assistant e inspector veem a rota publicada do 
   });
   assert.equal(adminRouteResponse.statusCode, 403);
 });
+

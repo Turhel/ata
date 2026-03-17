@@ -24,7 +24,7 @@ function buildTestEnv(): ApiEnv {
     host: "127.0.0.1",
     port: 3001,
     appEnv: "development",
-    appWebUrl,
+    logLevel: "fatal",    appWebUrl,
     betterAuthSecret,
     betterAuthUrl,
     databaseUrl
@@ -256,3 +256,4 @@ integration("/me mantém o perfil linkado mesmo quando o usuário operacional es
   assert.equal(body.profile.status, "blocked");
   assert.equal(body.profile.authUserId, signed.authUserId);
 });
+

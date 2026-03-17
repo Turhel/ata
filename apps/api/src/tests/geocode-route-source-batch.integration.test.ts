@@ -145,7 +145,7 @@ function buildTestEnv(nominatimBaseUrl: string): ApiEnv {
     host: "127.0.0.1",
     port: 3001,
     appEnv: "development",
-    appWebUrl,
+    logLevel: "fatal",    appWebUrl,
     betterAuthSecret,
     betterAuthUrl,
     databaseUrl,
@@ -207,8 +207,7 @@ function buildMultipartFilePayload(params: {
   };
 }
 
-function buildRouteWorkbookBuffer() {
-  const inspectorAccountCode = "ATAGEO04";
+function buildRouteWorkbookBuffer(inspectorAccountCode = "ATAGEO04") {
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.json_to_sheet([
     {
@@ -298,7 +297,7 @@ integration("routes geocode: geocodifica candidates do batch e sincroniza stops 
     status: "active"
   });
 
-  const { inspectorAccountCode, buffer } = buildRouteWorkbookBuffer();
+  const { inspectorAccountCode, buffer } = buildRouteWorkbookBuffer("ATAGEO04");
 
   await db.insert(inspectorAccounts).values({
     id: randomUUID(),
@@ -562,3 +561,209 @@ integration("routes geocode: geocodifica candidates do batch e sincroniza stops 
   assert.equal(replacedRouteBody.alerts.notFoundCount, 1);
   assert.equal(replacedRouteBody.alerts.pendingCount, 0);
 });
+
+integration("routes geocode: admin faz override manual e sincroniza candidate/stops ativos", async (t) => {
+  const fakeNominatim = await startFakeNominatim();
+  t.after(async () => {
+    await fakeNominatim.close();
+  });
+
+  const { app, db } = await createTestApp(fakeNominatim.baseUrl);
+  t.after(async () => {
+    await app.close();
+  });
+
+  const admin = await createAdminSession(app, db, "route-geocode-override");
+  const inspectorId = randomUUID();
+
+  await db.insert(inspectors).values({
+    id: inspectorId,
+    fullName: "Inspector Route Override",
+    departureCity: "Hinesville",
+    status: "active"
+  });
+
+  const { inspectorAccountCode, buffer } = buildRouteWorkbookBuffer("ATAGEO05");
+
+  await db.insert(inspectorAccounts).values({
+    id: randomUUID(),
+    accountCode: inspectorAccountCode,
+    accountType: "field",
+    currentInspectorId: inspectorId,
+    isActive: true
+  });
+
+  const multipart = buildMultipartFilePayload({
+    fieldName: "file",
+    fileName: "route-geocode-override.xlsx",
+    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer
+  });
+
+  const sourceBatchResponse = await app.inject({
+    method: "POST",
+    url: "/routes/source-batches/xlsx?routeDate=2026-03-10",
+    headers: {
+      cookie: admin.cookieHeader,
+      origin: appWebUrl,
+      host: "localhost:3001",
+      "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
+      "content-length": String(multipart.body.length)
+    },
+    payload: multipart.body
+  });
+
+  assert.equal(sourceBatchResponse.statusCode, 200);
+  const sourceBatchBody = sourceBatchResponse.json() as { ok: true; batch: { batchId: string } };
+
+  const createRouteResponse = await app.inject({
+    method: "POST",
+    url: "/routes",
+    headers: {
+      cookie: admin.cookieHeader,
+      origin: appWebUrl,
+      host: "localhost:3001",
+      "content-type": "application/json"
+    },
+    payload: {
+      sourceBatchId: sourceBatchBody.batch.batchId,
+      routeDate: "2026-03-10",
+      inspectorAccountCode
+    }
+  });
+
+  assert.equal(createRouteResponse.statusCode, 200);
+  const createRouteBody = createRouteResponse.json() as { ok: true; routeId: string };
+
+  const candidatesBefore = await db
+    .select({
+      id: routeCandidates.id,
+      externalOrderCode: routeCandidates.externalOrderCode
+    })
+    .from(routeCandidates)
+    .where(eq(routeCandidates.sourceBatchId, sourceBatchBody.batch.batchId));
+  const candidateToOverride = candidatesBefore.find((candidate) => candidate.externalOrderCode === "ROUTE-GEOCODE-002");
+  assert.ok(candidateToOverride);
+
+  const overrideResponse = await app.inject({
+    method: "PATCH",
+    url: `/routes/source-batches/${sourceBatchBody.batch.batchId}/candidates/${candidateToOverride.id}/geocode-override`,
+    headers: {
+      cookie: admin.cookieHeader,
+      origin: appWebUrl,
+      host: "localhost:3001",
+      "content-type": "application/json"
+    },
+    payload: {
+      latitude: "31.9000001",
+      longitude: "-81.7000002",
+      normalizedAddressLine1: "200 UNKNOWN RD",
+      normalizedCity: "NOWHERE",
+      normalizedState: "GA",
+      normalizedZipCode: "00000",
+      note: "Correção manual do admin"
+    }
+  });
+
+  assert.equal(overrideResponse.statusCode, 200);
+  const overrideBody = overrideResponse.json() as {
+    ok: true;
+    syncedRoutes: number;
+    syncedStops: number;
+    candidate: {
+      latitude: string;
+      longitude: string;
+      geocodeStatus: string;
+      geocodeQuality: string;
+      geocodeSource: string;
+      geocodeReviewRequired: boolean;
+    };
+  };
+  assert.equal(overrideBody.syncedRoutes, 1);
+  assert.equal(overrideBody.syncedStops, 1);
+  assert.equal(overrideBody.candidate.latitude, "31.9000001");
+  assert.equal(overrideBody.candidate.longitude, "-81.7000002");
+  assert.equal(overrideBody.candidate.geocodeStatus, "resolved");
+  assert.equal(overrideBody.candidate.geocodeQuality, "manual");
+  assert.equal(overrideBody.candidate.geocodeSource, "manual");
+  assert.equal(overrideBody.candidate.geocodeReviewRequired, false);
+
+  const candidatesAfter = await db
+    .select({
+      latitude: routeCandidates.latitude,
+      longitude: routeCandidates.longitude,
+      geocodeStatus: routeCandidates.geocodeStatus,
+      geocodeQuality: routeCandidates.geocodeQuality,
+      geocodeSource: routeCandidates.geocodeSource,
+      geocodeReviewRequired: routeCandidates.geocodeReviewRequired,
+      geocodeReviewReason: routeCandidates.geocodeReviewReason
+    })
+    .from(routeCandidates)
+    .where(eq(routeCandidates.id, candidateToOverride.id))
+    .limit(1);
+
+  assert.equal(candidatesAfter[0]?.latitude, "31.9000001");
+  assert.equal(candidatesAfter[0]?.longitude, "-81.7000002");
+  assert.equal(candidatesAfter[0]?.geocodeStatus, "resolved");
+  assert.equal(candidatesAfter[0]?.geocodeQuality, "manual");
+  assert.equal(candidatesAfter[0]?.geocodeSource, "manual");
+  assert.equal(candidatesAfter[0]?.geocodeReviewRequired, false);
+  assert.equal(candidatesAfter[0]?.geocodeReviewReason, null);
+
+  const updatedStops = await db
+    .select({
+      latitude: routeStops.latitude,
+      longitude: routeStops.longitude,
+      geocodeStatus: routeStops.geocodeStatus,
+      geocodeQuality: routeStops.geocodeQuality,
+      geocodeSource: routeStops.geocodeSource,
+      geocodeReviewRequired: routeStops.geocodeReviewRequired
+    })
+    .from(routeStops)
+    .where(eq(routeStops.candidateId, candidateToOverride.id));
+
+  assert.equal(updatedStops.length, 1);
+  assert.equal(updatedStops[0]?.latitude, "31.9000001");
+  assert.equal(updatedStops[0]?.longitude, "-81.7000002");
+  assert.equal(updatedStops[0]?.geocodeStatus, "resolved");
+  assert.equal(updatedStops[0]?.geocodeQuality, "manual");
+  assert.equal(updatedStops[0]?.geocodeSource, "manual");
+  assert.equal(updatedStops[0]?.geocodeReviewRequired, false);
+
+  const routeResponse = await app.inject({
+    method: "GET",
+    url: `/routes/${createRouteBody.routeId}`,
+    headers: {
+      cookie: admin.cookieHeader,
+      origin: appWebUrl,
+      host: "localhost:3001"
+    }
+  });
+
+  assert.equal(routeResponse.statusCode, 200);
+  const routeBody = routeResponse.json() as {
+    ok: true;
+    route: {
+      alerts: {
+        reviewRequiredCount: number;
+        notFoundCount: number;
+        pendingCount: number;
+      };
+    };
+    stops: Array<{
+      addressLine1: string | null;
+      geocodeQuality: string | null;
+      geocodeReviewRequired: boolean;
+    }>;
+    events: Array<{ eventType: string; reason: string | null }>;
+  };
+
+  assert.equal(routeBody.route.alerts.reviewRequiredCount, 0);
+  assert.equal(routeBody.route.alerts.notFoundCount, 0);
+  assert.equal(routeBody.route.alerts.pendingCount, 2);
+  const overriddenStop = routeBody.stops.find((stop) => stop.addressLine1 === "200 Unknown Rd");
+  assert.equal(overriddenStop?.geocodeQuality, "manual");
+  assert.equal(overriddenStop?.geocodeReviewRequired, false);
+  assert.ok(routeBody.events.some((event) => event.eventType === "geocode_overridden" && event.reason === "Correção manual do admin"));
+});
+

@@ -23,8 +23,12 @@ import { getRouteById } from "../modules/routes/get-route-by-id.js";
 import { importRouteFromGpx } from "../modules/routes/import-route-from-gpx.js";
 import { listRouteSourceBatchCandidates } from "../modules/routes/list-route-source-batch-candidates.js";
 import { listRouteDaySummaries } from "../modules/routes/list-route-day-summaries.js";
+import { listRouteHistorySummary } from "../modules/routes/list-route-history-summary.js";
 import { listRoutes } from "../modules/routes/list-routes.js";
+import { overrideRouteCandidateGeocode } from "../modules/routes/override-route-candidate-geocode.js";
 import { publishRoute } from "../modules/routes/publish-route.js";
+import { reassignRouteAssistant } from "../modules/routes/reassign-route-assistant.js";
+import { resequenceRouteStops } from "../modules/routes/resequence-route-stops.js";
 import { upsertRouteDayClose } from "../modules/routes/upsert-route-day-close.js";
 
 export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
@@ -122,6 +126,71 @@ export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
       });
 
       return { ok: true, routeDate, ...result };
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.get("/routes/history-summary", async (request, reply) => {
+    try {
+      await requireAdminOrMaster(request);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL nÃ£o definido" };
+      }
+
+      const query = (request.query as Record<string, unknown> | undefined) ?? {};
+      const dateFrom = typeof query.dateFrom === "string" ? query.dateFrom.trim() : "";
+      const dateTo = typeof query.dateTo === "string" ? query.dateTo.trim() : "";
+      const inspectorAccountCode =
+        typeof query.inspectorAccountCode === "string" ? query.inspectorAccountCode.trim() : "";
+      const assistantUserId =
+        typeof query.assistantUserId === "string" ? query.assistantUserId.trim() : "";
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(dateTo)) {
+        reply.status(400);
+        return {
+          ok: false,
+          error: "BAD_REQUEST",
+          message: "Parâmetros dateFrom e dateTo são obrigatórios (YYYY-MM-DD)"
+        };
+      }
+
+      if (dateFrom > dateTo) {
+        reply.status(400);
+        return {
+          ok: false,
+          error: "BAD_REQUEST",
+          message: "dateFrom não pode ser maior que dateTo"
+        };
+      }
+
+      const result = await listRouteHistorySummary({
+        databaseUrl: env.databaseUrl,
+        dateFrom,
+        dateTo,
+        inspectorAccountCode: inspectorAccountCode || undefined,
+        assistantUserId: assistantUserId || undefined
+      });
+
+      return {
+        ok: true,
+        dateFrom,
+        dateTo,
+        ...result
+      };
     } catch (error) {
       if (error instanceof PermissionError) {
         reply.status(error.statusCode);
@@ -478,6 +547,65 @@ export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
     }
   });
 
+  app.patch("/routes/source-batches/:id/candidates/:candidateId/geocode-override", async (request, reply) => {
+    try {
+      const { operationalUser } = await requireAdminOrMaster(request);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL não definido" };
+      }
+
+      const sourceBatchId = String((request.params as any).id ?? "").trim();
+      const candidateId = String((request.params as any).candidateId ?? "").trim();
+      if (!sourceBatchId || !candidateId) {
+        reply.status(400);
+        return { ok: false, error: "BAD_REQUEST", message: "sourceBatchId e candidateId são obrigatórios" };
+      }
+
+      const body = ((request.body ?? {}) as Record<string, unknown>) ?? {};
+      const result = await overrideRouteCandidateGeocode({
+        databaseUrl: env.databaseUrl,
+        sourceBatchId,
+        candidateId,
+        performedByUserId: operationalUser.id,
+        latitude: body.latitude,
+        longitude: body.longitude,
+        normalizedAddressLine1: body.normalizedAddressLine1,
+        normalizedCity: body.normalizedCity,
+        normalizedState: body.normalizedState,
+        normalizedZipCode: body.normalizedZipCode,
+        note: body.note
+      });
+
+      if (!result.ok) {
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { code: normalized.legacyCode } } : {})
+        };
+      }
+
+      return result;
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
   app.post("/routes", async (request, reply) => {
     try {
       const { operationalUser } = await requireAdminOrMaster(request);
@@ -520,6 +648,7 @@ export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
         inspectorAccountCode,
         assistantUserId,
         originCityOverride: originCity,
+        routingEngineBaseUrl: env.routingEngineBaseUrl,
         replaceExisting,
         replaceReason
       });
@@ -632,6 +761,119 @@ export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
     }
   });
 
+  app.patch("/routes/:id/assistant", async (request, reply) => {
+    try {
+      const { operationalUser } = await requireAdminOrMaster(request);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL nÃ£o definido" };
+      }
+
+      const routeId = String((request.params as any).id ?? "").trim();
+      if (!routeId) {
+        reply.status(400);
+        return { ok: false, error: "BAD_REQUEST", message: "id obrigatÃ³rio" };
+      }
+
+      const body = ((request.body ?? {}) as Record<string, unknown>) ?? {};
+      const assistantUserId =
+        body.assistantUserId == null ? null : String(body.assistantUserId ?? "").trim() || null;
+      const reason = body.reason == null ? null : String(body.reason ?? "").trim();
+
+      const result = await reassignRouteAssistant({
+        databaseUrl: env.databaseUrl,
+        routeId,
+        assistantUserId,
+        performedByUserId: operationalUser.id,
+        reason
+      });
+
+      if (!result.ok) {
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { code: normalized.legacyCode } } : {})
+        };
+      }
+
+      return result;
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
+  app.post("/routes/:id/resequence", async (request, reply) => {
+    try {
+      const { operationalUser } = await requireAdminOrMaster(request);
+
+      if (!env.databaseUrl) {
+        reply.status(500);
+        return { ok: false, error: "INTERNAL_ERROR", message: "DATABASE_URL nÃ£o definido" };
+      }
+
+      const routeId = String((request.params as any).id ?? "").trim();
+      if (!routeId) {
+        reply.status(400);
+        return { ok: false, error: "BAD_REQUEST", message: "id obrigatÃ³rio" };
+      }
+
+      const body = ((request.body ?? {}) as Record<string, unknown>) ?? {};
+      const stopIds = Array.isArray(body.stopIds)
+        ? body.stopIds.filter((value): value is string => typeof value === "string" && value.trim() !== "")
+        : [];
+      const reason = body.reason == null ? null : String(body.reason ?? "").trim();
+
+      const result = await resequenceRouteStops({
+        databaseUrl: env.databaseUrl,
+        routeId,
+        stopIds,
+        performedByUserId: operationalUser.id,
+        reason
+      });
+
+      if (!result.ok) {
+        const normalized = normalizeApiError(result.error);
+        reply.status(normalized.statusCode);
+        return {
+          ok: false,
+          error: normalized.error,
+          message: result.message,
+          ...(normalized.legacyCode ? { details: { code: normalized.legacyCode } } : {})
+        };
+      }
+
+      return result;
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        reply.status(error.statusCode);
+        return {
+          ok: false,
+          error: error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN",
+          message: error.message
+        };
+      }
+
+      const message = error instanceof Error ? error.message : "erro desconhecido";
+      reply.status(500);
+      return { ok: false, error: "INTERNAL_ERROR", message };
+    }
+  });
+
   app.post("/routes/:id/publish", async (request, reply) => {
     try {
       const { operationalUser } = await requireAdminOrMaster(request);
@@ -696,10 +938,23 @@ export function registerRoutesRoutes(app: FastifyInstance, env: ApiEnv) {
         return { ok: false, error: "BAD_REQUEST", message: "id obrigatório" };
       }
 
+      const query = (request.query as Record<string, unknown> | undefined) ?? {};
+      const profileRaw = typeof query.profile === "string" ? query.profile.trim() : "";
+      const profile = profileRaw || "inroute_legacy";
+      if (profile !== "inroute_legacy" && profile !== "generic_gpx") {
+        reply.status(400);
+        return {
+          ok: false,
+          error: "BAD_REQUEST",
+          message: "Parâmetro profile inválido para /routes/:id/export/gpx"
+        };
+      }
+
       const result = await exportRouteGpx({
         databaseUrl: env.databaseUrl,
         routeId: id,
-        generatedByUserId: operationalUser.id
+        generatedByUserId: operationalUser.id,
+        profile
       });
 
       if (!result.ok) {

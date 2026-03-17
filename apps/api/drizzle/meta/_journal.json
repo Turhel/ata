@@ -85,6 +85,20 @@
       "when": 1773702000000,
       "tag": "0011_route_day_close",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1773705600000,
+      "tag": "0012_route_geocode_override",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1773709200000,
+      "tag": "0013_route_admin_edits",
+      "breakpoints": true
     }
   ]
 }

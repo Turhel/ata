@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
@@ -18,7 +19,17 @@ import { registerRoutesRoutes } from "./routes/routes.js";
 import { registerInspectorProfileRoutes } from "./routes/inspector-profile.js";
 
 export async function buildApp(env: ApiEnv) {
-  const app = fastify().withTypeProvider<ZodTypeProvider>();
+  const app = fastify({
+    logger: {
+      level: env.logLevel
+    },
+    genReqId: (request) => {
+      const headerRequestId = request.headers["x-request-id"];
+      return typeof headerRequestId === "string" && headerRequestId.trim() !== ""
+        ? headerRequestId.trim()
+        : randomUUID();
+    }
+  }).withTypeProvider<ZodTypeProvider>();
 
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);

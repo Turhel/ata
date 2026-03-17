@@ -25,7 +25,7 @@ function buildTestEnv(): ApiEnv {
     host: "127.0.0.1",
     port: 3001,
     appEnv: "development",
-    appWebUrl,
+    logLevel: "fatal",    appWebUrl,
     betterAuthSecret,
     betterAuthUrl,
     databaseUrl
@@ -258,3 +258,4 @@ integration("inspector profile: inspector sem vínculo não acessa self-service"
   const body = response.json() as { ok: false; error: string };
   assert.equal(body.error, "FORBIDDEN");
 });
+

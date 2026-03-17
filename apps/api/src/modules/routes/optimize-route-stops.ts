@@ -11,7 +11,7 @@ type OptimizationCandidate = {
   longitude?: string | null;
 };
 
-export type RouteOptimizationMode = "heuristic_city_zip" | "heuristic_geo_city_zip";
+export type RouteOptimizationMode = "heuristic_city_zip" | "heuristic_geo_city_zip" | "matrix_osrm";
 
 function normalizeText(value: string | null | undefined) {
   return (value ?? "")
@@ -140,24 +140,98 @@ function compareByTuple(
   );
 }
 
-export function optimizeRouteStops<TCandidate extends OptimizationCandidate>(params: {
-  candidates: TCandidate[];
-  routeDate: string;
-  originCity: string | null;
-}) {
-  const fallbackOrdered = [...params.candidates].sort((left, right) =>
-    compareByTuple(left, right, { routeDate: params.routeDate, originCity: params.originCity })
-  );
+async function fetchOsrmDistanceMatrix(
+  baseUrl: string,
+  candidates: OptimizationCandidate[]
+) {
+  const coordinates = candidates
+    .map((candidate) => {
+      const latitude = toCoordinate(candidate.latitude);
+      const longitude = toCoordinate(candidate.longitude);
+      if (latitude == null || longitude == null) {
+        return null;
+      }
+      return `${longitude},${latitude}`;
+    });
 
-  const hasAnyCoordinates = fallbackOrdered.some((candidate) => hasCoordinates(candidate));
-  if (!hasAnyCoordinates) {
-    return {
-      ordered: fallbackOrdered,
-      originCity: params.originCity?.trim() ? params.originCity.trim() : null,
-      optimizationMode: "heuristic_city_zip" as const
-    };
+  if (coordinates.some((value) => value == null)) {
+    return null;
   }
 
+  const url = `${baseUrl}/table/v1/driving/${coordinates.join(";")}?annotations=distance`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    return null;
+  }
+
+  const body = (await response.json()) as {
+    code?: string;
+    distances?: unknown;
+  };
+
+  if (body.code !== "Ok" || !Array.isArray(body.distances)) {
+    return null;
+  }
+
+  const matrix = body.distances.map((row) =>
+    Array.isArray(row)
+      ? row.map((value) => {
+          const parsed = typeof value === "number" ? value : Number.NaN;
+          return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
+        })
+      : []
+  );
+
+  if (matrix.length !== candidates.length || matrix.some((row) => row.length !== candidates.length)) {
+    return null;
+  }
+
+  return matrix;
+}
+
+function orderByGreedyMatrix<TCandidate extends OptimizationCandidate>(
+  candidates: TCandidate[],
+  distanceMatrix: number[][]
+) {
+  const remaining = new Set(candidates.map((_, index) => index));
+  const orderedIndexes: number[] = [];
+  let currentIndex = 0;
+
+  remaining.delete(currentIndex);
+  orderedIndexes.push(currentIndex);
+
+  while (remaining.size > 0) {
+    let nextIndex: number | null = null;
+    let nextDistance = Number.POSITIVE_INFINITY;
+
+    for (const candidateIndex of remaining) {
+      const distance = distanceMatrix[currentIndex]?.[candidateIndex] ?? Number.POSITIVE_INFINITY;
+      if (distance < nextDistance) {
+        nextDistance = distance;
+        nextIndex = candidateIndex;
+      }
+    }
+
+    if (nextIndex == null || !Number.isFinite(nextDistance)) {
+      break;
+    }
+
+    orderedIndexes.push(nextIndex);
+    remaining.delete(nextIndex);
+    currentIndex = nextIndex;
+  }
+
+  if (remaining.size > 0) {
+    orderedIndexes.push(...remaining);
+  }
+
+  return orderedIndexes.map((index) => candidates[index]!);
+}
+
+function orderByGeoHeuristic<TCandidate extends OptimizationCandidate>(
+  fallbackOrdered: TCandidate[],
+  params: { routeDate: string; originCity: string | null }
+) {
   const ordered: TCandidate[] = [];
   const remaining = [...fallbackOrdered];
   let current = remaining.shift() ?? null;
@@ -194,8 +268,49 @@ export function optimizeRouteStops<TCandidate extends OptimizationCandidate>(par
     }
   }
 
+  return ordered;
+}
+
+export async function optimizeRouteStops<TCandidate extends OptimizationCandidate>(params: {
+  candidates: TCandidate[];
+  routeDate: string;
+  originCity: string | null;
+  routingEngineBaseUrl?: string | null;
+}) {
+  const fallbackOrdered = [...params.candidates].sort((left, right) =>
+    compareByTuple(left, right, { routeDate: params.routeDate, originCity: params.originCity })
+  );
+
+  const hasAnyCoordinates = fallbackOrdered.some((candidate) => hasCoordinates(candidate));
+  if (!hasAnyCoordinates) {
+    return {
+      ordered: fallbackOrdered,
+      originCity: params.originCity?.trim() ? params.originCity.trim() : null,
+      optimizationMode: "heuristic_city_zip" as const
+    };
+  }
+
+  const allCoordinates = fallbackOrdered.every((candidate) => hasCoordinates(candidate));
+  if (params.routingEngineBaseUrl && allCoordinates && fallbackOrdered.length > 1) {
+    try {
+      const matrix = await fetchOsrmDistanceMatrix(params.routingEngineBaseUrl, fallbackOrdered);
+      if (matrix) {
+        return {
+          ordered: orderByGreedyMatrix(fallbackOrdered, matrix),
+          originCity: params.originCity?.trim() ? params.originCity.trim() : null,
+          optimizationMode: "matrix_osrm" as const
+        };
+      }
+    } catch {
+      // fallback silencioso para heurística local
+    }
+  }
+
   return {
-    ordered,
+    ordered: orderByGeoHeuristic(fallbackOrdered, {
+      routeDate: params.routeDate,
+      originCity: params.originCity
+    }),
     originCity: params.originCity?.trim() ? params.originCity.trim() : null,
     optimizationMode: "heuristic_geo_city_zip" as const
   };
